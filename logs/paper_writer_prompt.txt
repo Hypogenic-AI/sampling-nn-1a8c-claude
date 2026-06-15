@@ -1,0 +1,958 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .claude/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# Sampling Neural Network — Research Report
+
+**Research question.** What happens if we form a probability distribution over an
+**intermediate** layer's activations and **sample** from it — the same operation we
+apply to the final softmax — rather than passing the deterministic activations forward?
+
+**Key finding (one sentence).** Intermediate-layer sampling is a *distribution-type–
+dependent regularizer*: continuous (Gaussian) sampling is essentially **free** (≈
+deterministic accuracy) and improves calibration and the generalization gap, while the
+*literal* softmax analogue — categorical (Gumbel-Softmax) sampling that collapses a hidden
+layer to ~one active unit — is **the most expensive**, has the **highest gradient
+variance**, and **fails to train at all on the harder CIFAR-10 task** (collapsing to chance).
+
+**Practical implication.** "Sampling a hidden layer like the output softmax" is *possible*
+and even beneficial in its gentle continuous form, but the direct categorical form is a
+severe information bottleneck whose cost scales with task difficulty and with how
+aggressively (low temperature) you sample — it is not a free drop-in.
+
+---
+
+## 1. Executive Summary
+
+The final layer of a classifier is stochastic — we sample a class from the softmax. The
+submitter asked what happens if we do the *same thing* at an intermediate layer: treat the
+activations as a distribution and draw a sample. We built a single drop-in `SamplingLayer`
+and, holding architecture/data/optimizer fixed, compared seven activation operators —
+**deterministic** (reference), three **baselines** (dropout, additive Gaussian noise), and
+the sampling variants the literature identifies as the three faces of this idea:
+**continuous Gaussian** (VAE reparameterization), **binary Bernoulli** (Bengio
+straight-through), and **categorical Gumbel-Softmax** (soft and hard one-hot — *the direct
+softmax analogue*). We evaluated on **MNIST** (MLP, 3 seeds) and **CIFAR-10** (small CNN, 3
+seeds) with accuracy, NLL, calibration (ECE), generalization gap, gradient variance,
+single-sample vs MC-averaged inference, a temperature/noise sweep, a layer-position sweep,
+and a robustness-to-input-noise sweep — 117 trained models in total.
+
+Three results stand out. (1) **The distribution type dominates everything.** Continuous
+Gaussian sampling costs ≈0 accuracy on MNIST (97.7% vs 97.8% deterministic) and *beats*
+deterministic on CIFAR-10 calibration (ECE 0.074 vs 0.112) and NLL; categorical sampling
+costs 8–10 points on MNIST and **collapses to 10–25%** on CIFAR-10. (2) **Sampling
+regularizes.** Every stochastic variant shrinks the train–test gap and most lower ECE — the
+benefit the literature predicts. (3) **MC-averaging recovers the single-sample cost**, just
+as averaging softmax samples approximates the expectation: dropout climbs from 96.6%→97.9%
+as K grows from 1→50. The gradient-variance ranking (Bernoulli-ST lowest, hard-categorical
+highest) exactly tracks the accuracy cost, explaining *why* categorical sampling is hard.
+
+---
+
+## 2. Research Question & Motivation
+
+**Hypothesis.** Sampling from the distribution of activations at an intermediate layer
+(analogous to softmax sampling) changes model behavior in ways that depend on the
+distribution type, the amount of sampling, the layer position, and whether sampling is used
+at train and/or test time.
+
+**Why it matters.** Hidden-layer stochasticity is the shared mechanism behind VAEs,
+Gumbel-Softmax discrete latents, stochastic neurons, dropout, and the information
+bottleneck — but these were always studied *for a purpose* or *at a fixed place*. The
+`literature_review.md` gap is explicit: **no prior work isolates intermediate-layer
+activation sampling as the variable of study**, and the **softmax-sampling analogy is rarely
+made explicit**. This project runs exactly that controlled study. Knowing the *cost*
+(accuracy) and *benefit* (calibration, generalization, robustness) of this operation, and
+*where/how* it is best applied, is directly useful for anyone considering stochastic hidden
+representations.
+
+**Hypotheses tested.** H1 single-sample accuracy ≤ deterministic, gap grows with sampling
+amount; H2 sampling improves calibration / generalization gap; H3 MC-averaging recovers
+accuracy and calibration; H4 Gaussian gentlest, hard categorical most aggressive; H5
+sampling improves robustness to input noise.
+
+---
+
+## 3. Data Construction
+
+- **MNIST** — 60k train / 10k test, 28×28 grayscale, 10 classes; read directly from the
+  pre-downloaded IDX files (`datasets/mnist/`). Standardized with **train-split** mean/std
+  (no leakage). Flattened to 784-d for the MLP.
+- **CIFAR-10** — 50k train / 10k test, 32×32×3, 10 classes; read from the pre-downloaded
+  pickled batches (`datasets/cifar-10-batches-py/`). Per-channel standardized with
+  **train-split** statistics.
+- **Validation split.** A 10% validation set is carved from train (deterministic per seed)
+  for early stopping and any knob selection; **the test set is used only for final
+  evaluation**. Both datasets are balanced (10 classes), so plain accuracy is appropriate
+  and no resampling/class-weighting is needed. Data quality verified in `src/data.py`
+  (shapes, normalized mean≈0/std≈1, class counts).
+
+---
+
+## 4. Methodology
+
+### 4.1 The `SamplingLayer` (the object of study)
+A drop-in module placed after a hidden ReLU. It turns the incoming activations into a
+distribution and draws a sample. Modes (`src/models.py`):
+
+| Mode | Distribution | Sample | Gradient estimator | Role |
+|---|---|---|---|---|
+| `deterministic` | — | identity | — | reference |
+| `dropout` | Bernoulli mask | mask·x/(1-p) | exact (mask is data-independent) | baseline (MC-dropout) |
+| `gauss_noise` | x + σ·𝒩(0,1) | additive | exact (reparameterized) | baseline (unlearned noise) |
+| `gaussian_reparam` | 𝒩(μ(x), σ(x)) per unit | μ+σ⊙ε | **reparameterization** | VAE-style continuous |
+| `bernoulli_st` | Bernoulli(sigmoid(x)) per unit | hard 0/1 | **straight-through** | Bengio stochastic neuron |
+| `gumbel_softmax` | softmax(x) over units | relaxed sample | **Gumbel-Softmax** | *direct softmax analogue (soft)* |
+| `gumbel_st` | softmax(x) over units | hard one-hot | **ST-Gumbel** | *direct softmax analogue (hard: sample ONE unit)* |
+
+The categorical modes implement the idea literally: the layer's units are treated as
+*logits of a categorical distribution* (softmax → a distribution), and we draw a
+(Gumbel-Softmax) sample, exactly as we sample the final softmax — but over hidden units. The
+one-hot simplex vector is rescaled by the layer width so its magnitude is comparable to a
+dense ReLU activation. `gaussian_reparam` adds a small KL-to-prior term (weight 1e-3) as a
+built-in regularizer (VAE/VIB), as recommended in the review.
+
+### 4.2 Backbones, training, evaluation
+- **MNIST:** MLP `784→256→256→10` (ReLU), `SamplingLayer` after hidden-1 (`pos=0`) by
+  default. **CIFAR-10:** small CNN (4 conv + 2 FC), `SamplingLayer` on the 256-d FC features.
+- **Training:** Adam (lr 1e-3), batch 128, ≤15 epochs (MNIST) / 20 (CIFAR), early stopping
+  on val accuracy (patience 5), best checkpoint restored. Seeds {0,1,2}; all RNGs seeded.
+- **Metrics:** test accuracy, NLL, **ECE (15-bin)**, predictive entropy, generalization gap
+  (train−test acc), and **gradient variance** at the sampling layer (variance of the loss
+  gradient across stochastic passes on a *fixed* minibatch — isolates sampling noise).
+  Stochastic models are evaluated both **single-sample** and **MC-averaged** over K passes.
+- **Statistics:** paired t-test across seeds vs deterministic; Cohen's d; α=0.05.
+- **Hardware/runtime:** NVIDIA RTX A6000; torch 2.12.0+cu130; 117 models, ≈36 min total
+  compute (MNIST seconds–minutes/model, CIFAR ≈40–75 s/model). Full versions in
+  `results/environment.json`.
+
+### 4.3 Experiments
+E1 core comparison (MNIST, all modes); E2 temperature τ / noise σ sweep; E3 layer-position
+sweep; E4 train/test × MC-averaging (K∈{1,5,20,50}); E5 robustness to input Gaussian noise;
+E6 CIFAR-10 confirmation. Selectable via `python src/run_experiments.py --exp E1 …`.
+
+---
+
+## 5. Results
+
+### 5.1 E1 — Core comparison on MNIST (MLP, 3 seeds, sampling after hidden-1)
+
+| Mode | Acc (1 sample) | Acc (MC-10) | NLL | ECE | Gen-gap | Grad-var |
+|---|---|---|---|---|---|---|
+| Deterministic | **0.9776** | 0.9776 | 0.088 | 0.0118 | 0.0172 | 0 |
+| Dropout | 0.9655 | 0.9781 | 0.123 | 0.0115 | 0.0118 | 9.3e-7 |
+| Gaussian noise | 0.9800 | **0.9804** | 0.091 | 0.0123 | 0.0152 | 5.3e-8 |
+| Gaussian reparam (VAE) | 0.9773 | 0.9775 | 0.089 | 0.0098 | 0.0111 | 1.5e-6 |
+| Bernoulli ST | 0.9499 | 0.9663 | 0.166 | **0.0070** | 0.0109 | 8.0e-8 |
+| Gumbel-Softmax (soft) | 0.8995 | 0.9191 | 0.386 | 0.0194 | 0.0006 | 7.1e-6 |
+| Gumbel ST (hard 1-hot) | 0.8735 | 0.8859 | 0.511 | 0.0150 | −0.0214 | 1.5e-5 |
+
+Paired t-test vs deterministic (single-sample acc): Bernoulli ST Δ=−2.77 pts (p=0.0015),
+Gumbel-Softmax Δ=−7.82 pts (p=0.031), Gumbel-ST Δ=−10.4 pts (p=0.048), Gaussian reparam
+Δ=−0.03 pts (p=0.83, **not significant** — free), Gaussian noise Δ=+0.24 pts (p=0.11).
+Figure: `results/plots/E1_core_mnist_bars.png`.
+
+**Reading.** Cost ordering is exactly H4: Gaussian ≈ 0 ≪ Bernoulli ≪ categorical. ECE
+*drops* for the gentle stochastic variants (best: Bernoulli 0.0070, Gaussian-reparam 0.0098
+vs 0.0118 deterministic) and the generalization gap shrinks for every sampling variant —
+sampling regularizes. The gradient-variance column is the mechanistic explanation: it
+ranks Gauss-noise/Bernoulli-ST (≈1e-7) < dropout/reparam (≈1e-6) < Gumbel-soft (7e-6) <
+**Gumbel-hard (1.5e-5)**, the same order as the accuracy cost.
+
+### 5.2 E2 — How much you sample (temperature / noise scale)
+
+| Gumbel-Softmax τ | 0.1 | 0.5 | 1.0 | 2.0 | 5.0 |
+|---|---|---|---|---|---|
+| Acc (1 sample) | 0.664 | 0.900 | 0.957 | 0.969 | 0.976 |
+
+| Gaussian noise σ | 0.1 | 0.3 | 0.6 | 1.0 | 2.0 |
+|---|---|---|---|---|---|
+| Acc (1 sample) | 0.979 | 0.980 | 0.980 | 0.978 | 0.976 |
+
+Figure: `results/plots/E2_sweep.png`. **Lower τ = sharper categorical = more aggressive
+sampling = larger cost** (monotonic, 66%→97.6%). As τ grows the softmax flattens toward
+uniform and the *act of sampling* fades out — accuracy approaches the deterministic
+reference. This cleanly separates "the distributional layer" from "the act of sampling":
+the cost *is* the sampling. Gaussian noise is gentle across two decades of σ, with a mild
+robustness sweet-spot at σ≈0.3–0.6.
+
+### 5.3 E3 — Where you sample (layer position)
+
+| Mode | pos=0 (after hidden-1) | pos=1 (after hidden-2, nearer output) |
+|---|---|---|
+| Bernoulli ST | 0.9499 | 0.9783 |
+| Gaussian reparam | 0.9773 | 0.9795 |
+| Gumbel-ST | 0.8735 | 0.8886 |
+
+Sampling **closer to the output is consistently cheaper** — the network has fewer remaining
+layers whose computation is disrupted, and (for categorical) the bottleneck sits nearer the
+already-low-dimensional decision. `results/summary_E3_position.csv`.
+
+### 5.4 E4 — MC-averaging recovers the cost (and the softmax analogy)
+
+| K (test samples) | 1 | 5 | 20 | 50 |
+|---|---|---|---|---|
+| Dropout acc | 0.9655 | 0.9766 | 0.9793 | 0.9795 |
+| Gumbel-Softmax acc | 0.8995 | 0.9174 | 0.9209 | 0.9220 |
+| Gaussian reparam acc | 0.9773 | 0.9774 | 0.9774 | 0.9774 |
+
+Figure: `results/plots/E4_mc.png`. Averaging many stochastic passes approximates the
+expectation over the activation distribution — exactly as averaging softmax samples
+approximates the class distribution — and recovers most of the single-sample loss
+(dropout +1.4 pts; Gumbel +2.3 pts). Low-variance reparameterized Gaussian has almost
+nothing to recover. (Caveat: MC-averaging *categorical* samples can *raise* ECE — averaging
+near-one-hot draws yields overconfident mean probabilities.)
+
+### 5.5 E5 — Robustness to input Gaussian noise (MNIST)
+
+| σ (input) | 0.0 | 0.5 | 1.0 | 1.5 |
+|---|---|---|---|---|
+| Deterministic | 0.9776 | 0.9719 | 0.9421 | 0.8769 |
+| Dropout (MC-10) | 0.9782 | 0.9733 | **0.9514** | **0.8988** |
+| Gaussian reparam | 0.9775 | 0.9704 | 0.9397 | 0.8733 |
+| Gumbel-ST | 0.8854 | 0.8782 | 0.8501 | 0.7984 |
+
+Figure: `results/plots/E5_robust.png`. The robustness benefit is **real but modest** and is
+driven mainly by **dropout / MC-averaging** (best at every corrupted severity, +1 pt at
+σ=1.0, +2.2 pts at σ=1.5). Continuous Gaussian sampling tracks the deterministic curve;
+categorical models start lower but degrade *relatively* gracefully. H5 is only weakly
+supported.
+
+### 5.6 E6 — CIFAR-10 confirmation (small CNN, 3 seeds) — the striking result
+
+| Mode | Acc (1) | Acc (MC-10) | NLL | ECE | Gen-gap |
+|---|---|---|---|---|---|
+| Deterministic | 0.7503 | 0.7503 | 0.941 | 0.1119 | 0.2253 |
+| Dropout | 0.7298 | 0.7645 | 0.962 | 0.0987 | 0.1845 |
+| Gaussian noise | 0.7456 | 0.7472 | 0.939 | 0.1240 | 0.2288 |
+| **Gaussian reparam** | **0.7548** | **0.7553** | **0.784** | 0.0741 | 0.2084 |
+| Bernoulli ST | 0.7384 | 0.7650 | 0.833 | **0.0681** | 0.1458 |
+| **Gumbel-Softmax (soft)** | **0.1000** | **0.1000** | 2.316 | 0.030 | −0.000 |
+| **Gumbel ST (hard 1-hot)** | **0.2555** | 0.2574 | 1.895 | 0.038 | 0.001 |
+
+Figure: `results/plots/E6_core_cifar10_bars.png`. On a harder task the divide widens
+dramatically: **continuous Gaussian sampling matches/beats deterministic accuracy** (75.5%
+vs 75.0%) while **cutting NLL 0.94→0.78 and ECE 0.112→0.074**; Bernoulli ST gives the best
+calibration (0.068) and smallest gen-gap (0.146). But the **literal categorical softmax
+analogue collapses** — Gumbel-Softmax to **chance (10%)** and hard one-hot to **25%**.
+Forcing all CNN features through a single sampled unit is too severe a bottleneck (and too
+high-variance) to optimize. This is the project's sharpest finding and a concrete instance
+of the `literature_review.md` VQ-VAE caution about degenerate/collapsed hidden samples.
+
+---
+
+## 6. Analysis & Discussion
+
+- **H1 (cost) — supported.** Single-sample accuracy ≤ deterministic for every genuine
+  sampling variant, and the gap grows monotonically as τ↓ / sampling sharpens (E2) and as
+  the distribution moves from continuous→binary→categorical (E1/E6).
+- **H2 (regularization) — supported.** All sampling variants shrink the train–test gap;
+  most lower ECE; Gaussian-reparam/Bernoulli improve calibration *and* (on CIFAR) NLL —
+  trading a tiny accuracy cost (or none) for better-behaved probabilities.
+- **H3 (MC recovery) — supported.** MC-averaging recovers most of the single-sample loss
+  (E4), realizing the softmax-sampling analogy: many samples ≈ the expectation.
+- **H4 (distribution type) — strongly supported.** Gaussian gentlest, hard categorical most
+  aggressive, Bernoulli between — visible in accuracy, NLL, *and* gradient variance, with
+  the gradient-variance ranking mechanistically explaining the accuracy ranking.
+- **H5 (robustness) — weakly supported.** A modest improvement, mostly from dropout/MC,
+  not a large effect.
+
+**Why categorical sampling is special.** It is the *only* variant that changes the
+*dimensionality of information flow*: a hard one-hot sample passes essentially log₂(width)
+bits, versus the full continuous vector for Gaussian/Bernoulli. That is simultaneously the
+strongest regularizer (smallest gen-gap, lowest ECE on CIFAR) and the highest-variance,
+hardest-to-train operator — beneficial as a mild relaxation (large τ, MNIST) but
+catastrophic when pushed hard or on a task that needs the bandwidth (CIFAR). This is the
+crux of "what intermediate-layer softmax sampling does."
+
+**Surprises.** (1) Gaussian *additive noise* and *reparameterized* sampling are effectively
+free, and on CIFAR the latter *improves* accuracy+calibration+NLL together. (2) The total
+collapse of soft Gumbel-Softmax to exactly chance on CIFAR — not merely degraded but
+untrainable. (3) Sampling **later** is cheaper (E3), opposite to a naive "early bottleneck
+is best" intuition.
+
+---
+
+## 7. Limitations
+
+- **Scope:** two datasets (MNIST/CIFAR-10), small models, single sampling site per net,
+  3 seeds. Trends are clear and significant but absolute numbers are modest (no heavy CNN
+  tuning/augmentation on CIFAR).
+- **Categorical-collapse confound:** the collapse could be partly an *optimization* failure
+  (LR/scale/temperature for the rescaled one-hot at a wide FC layer) rather than a pure
+  information limit. A τ-anneal schedule and per-mode LR tuning were out of scope; we report
+  the collapse honestly as observed under the shared protocol. The τ-sweep (E2) shows the
+  effect is real and monotonic, supporting the information-bottleneck reading.
+- **Calibration of categorical MC-averaging** can worsen ECE — MC-averaging is not a
+  universal calibration fix.
+- **Robustness** tested only under Gaussian input noise (no adversarial/corruption suites).
+- **Gradient variance** measured on one parameter tensor feeding the sampler as a proxy.
+
+---
+
+## 8. Conclusions & Next Steps
+
+**Answer to the research question.** Sampling a hidden layer the way we sample the final
+softmax *works and even helps in its gentle continuous form* — Gaussian reparameterized
+sampling costs ≈0 accuracy and yields better-calibrated, lower-NLL models with a smaller
+generalization gap — but the **literal categorical version (sample one unit from a softmax
+over hidden units) is a severe, high-variance information bottleneck**: it is the most
+expensive variant on MNIST and **fails to train on CIFAR-10**, with cost scaling as you
+sharpen the sample (lower τ), move the layer earlier, and increase task difficulty. The
+behavior is governed first and foremost by the **distribution type**, and MC-averaging at
+test time recovers the single-sample cost, exactly mirroring softmax sampling.
+
+**Next steps.** (1) Temperature **annealing** + per-mode LR for the categorical modes to
+test whether CIFAR collapse is bottleneck vs optimization. (2) A **VQ-VAE-style codebook**
+(K≫width prototypes) as a less brutal categorical layer. (3) Multiple/structured sampling
+sites and an explicit **information-bottleneck (VIB)** objective to quantify bits passed.
+(4) Scale to deeper nets / harder data to see whether continuous sampling's calibration
+benefit persists. (5) Uncertainty quality (OOD detection) from MC-sampled hidden layers.
+
+---
+
+## References (resources used)
+Bengio, Léonard & Courville (2013) *Stochastic Neurons*; Kingma & Welling (2013) *VAE*;
+Jang, Gu & Poole (2016) *Gumbel-Softmax*; van den Oord et al. (2017) *VQ-VAE*; Maddison et
+al. (2016) *Concrete*; Gal & Ghahramani (2016) *Dropout as Bayesian*; Lee et al. (2019)
+*ProbAct*; Alemi et al. (2016) *Deep VIB*; Dhillon et al. (2018) *Stochastic Activation
+Pruning*. PDFs in `papers/`; synthesis in `literature_review.md`; catalog in `resources.md`.
+Datasets: MNIST (LeCun), CIFAR-10 (Krizhevsky). Tools: PyTorch 2.12, NumPy, SciPy,
+scikit-learn, pandas, matplotlib. Code reuse: `code/pytorch-examples/` (VAE
+`reparameterize`, MNIST baseline) generalized into `src/models.py:SamplingLayer`.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Planning — Sampling Neural Network
+
+## Motivation & Novelty Assessment
+
+### Why This Research Matters
+Modern networks are deterministic in their hidden layers but *stochastic at the very
+end*: the final softmax defines a categorical distribution over classes and we
+**sample** from it (or take its argmax). The submitter asks a sharp question: what if
+we apply that *same operation* — form a distribution over a layer's activations and
+sample a single realization — at an **intermediate** layer? Understanding this is
+valuable because (a) it unifies a scattered literature (VAE latent sampling,
+Gumbel-Softmax, stochastic neurons, dropout) under one controlled lens; (b) hidden-layer
+sampling is the mechanism behind uncertainty estimation, regularization, and discrete
+representation learning; and (c) practitioners need to know the *cost* (does sampling
+hurt accuracy?) and the *benefit* (calibration, robustness, generalization) of injecting
+this stochasticity, and *where* it is best placed.
+
+### Gap in Existing Work
+From `literature_review.md`: prior work either samples for a **purpose** (VAE generation,
+VIB compression, MC-dropout uncertainty, SAP robustness) or at a **fixed place** (the
+latent bottleneck, or every layer as in ProbAct). **No paper isolates intermediate-layer
+activation sampling as the variable of study itself** and runs a controlled sweep over
+*which distribution*, *how much* sampling, *where*, and *train- vs test-time* under one
+protocol. Crucially, the **softmax-sampling analogy is rarely made explicit**: treating a
+hidden layer exactly like the output layer — softmax over its units → a categorical
+distribution → sample one — is the most literal reading of the idea and is essentially
+unstudied as such.
+
+### Our Novel Contribution
+A single controlled framework — a drop-in `SamplingLayer` — under which we compare, on the
+same architecture/data/metrics:
+1. **Categorical / Gumbel-Softmax sampling** over a hidden layer's units (the *direct*
+   softmax analogue — the centerpiece, reading the idea literally).
+2. **Per-unit Gaussian** sampling (VAE-style reparameterization).
+3. **Per-unit Bernoulli** sampling (Bengio straight-through stochastic neurons).
+against deterministic, dropout, and additive-Gaussian-noise baselines — measuring
+accuracy, calibration (ECE/NLL), robustness-to-noise, generalization gap, and gradient
+variance, with **train-time vs test-time** and **single-sample vs MC-averaged** ablations.
+
+### Experiment Justification
+- **E1 — Distribution-type comparison (core).** Insert `SamplingLayer` at a fixed mid
+  layer; compare all sampling variants + baselines on MNIST, multiple seeds. *Why:* the
+  central question — what does each kind of intermediate sampling do to behavior.
+- **E2 — Temperature / noise-scale sweep.** Vary τ (Gumbel) and σ (Gaussian) from
+  near-deterministic to strong sampling. *Why:* isolates the *amount* of sampling and the
+  bias↔variance / determinism↔stochasticity trade-off; locates the τ→0 "sampling-off"
+  limit that separates the *distributional layer* from the *act of sampling*.
+- **E3 — Layer-position sweep.** Move the categorical `SamplingLayer` to early/mid/late
+  positions. *Why:* tests the hypothesis that *where* you sample matters (info bottleneck
+  vs near-output collapse).
+- **E4 — Train-time vs test-time × MC-averaging.** Toggle sampling on/off at train and
+  test; average K samples at inference. *Why:* clean ablation of when stochasticity helps,
+  and whether MC-averaging recovers accuracy and improves calibration/uncertainty.
+- **E5 — Robustness & calibration under input corruption.** Evaluate best variants under
+  Gaussian input noise at increasing severity. *Why:* tests the literature's claim that
+  activation sampling buys robustness/uncertainty (VIB/SAP/MC-dropout).
+- **E6 — CIFAR-10 confirmation (secondary, small CNN).** Re-run the core comparison on a
+  harder dataset. *Why:* external validity beyond MNIST.
+
+---
+
+## Research Question
+Does forming a probability distribution over an intermediate layer's activations and
+**sampling** from it (as we do at the final softmax) change model behavior — and how does
+the effect depend on the **distribution type** (categorical/Gaussian/Bernoulli), the
+**amount** of sampling (τ/σ), the **layer position**, and **train- vs test-time** use —
+measured by accuracy, calibration, robustness, generalization, and gradient variance?
+
+## Background and Motivation
+See "Motivation & Novelty" above. The enabling machinery exists (reparameterization,
+Gumbel-Softmax/Concrete, straight-through), so the contribution is the *controlled study*,
+not a new estimator.
+
+## Hypothesis Decomposition
+- **H1 (cost).** Intermediate sampling adds noise to the forward pass; single-sample test
+  accuracy will be ≤ deterministic, with the gap growing as τ/σ grows and as the layer
+  moves toward the output.
+- **H2 (calibration/uncertainty).** Train-time sampling acts as a regularizer; sampling
+  variants improve calibration (lower ECE) and/or generalization gap vs deterministic.
+- **H3 (MC recovery).** MC-averaging many samples at test time recovers most of the
+  single-sample accuracy loss and improves calibration — the same way averaging softmax
+  samples approximates the expectation.
+- **H4 (distribution type).** Continuous Gaussian sampling is the gentlest (lowest cost);
+  hard categorical one-hot sampling is the most aggressive (highest cost, strongest
+  bottleneck/representation effect), with Bernoulli in between.
+- **H5 (robustness).** Models trained with intermediate sampling degrade more gracefully
+  under input noise than the deterministic baseline.
+
+Independent variables: distribution type, τ/σ, layer position, train/test sampling flag,
+K (MC samples). Dependent variables: test acc, NLL, ECE, robust acc, train−test gap,
+gradient variance.
+
+## Proposed Methodology
+
+### Approach
+A drop-in `SamplingLayer(mode, ...)` inserted after a chosen hidden layer of a fixed
+backbone (MLP for MNIST, small CNN for CIFAR-10). `mode ∈ {deterministic, dropout,
+gauss_noise, gaussian_reparam, bernoulli_st, gumbel_softmax, gumbel_st}`. Everything else
+(optimizer, schedule, width, depth) held constant so the sampling operator is the only
+variable. The categorical modes implement the literal softmax analogue: `softmax` over the
+layer's units (a distribution), then a Gumbel-Softmax sample (soft) or straight-through
+one-hot (hard), scaled back so magnitude is comparable.
+
+### Experimental Steps
+1. Implement data loaders for the pre-downloaded MNIST/CIFAR (no torchvision download).
+2. Implement `SamplingLayer` + backbones + train/eval harness with seeds, logging,
+   checkpointing, gradient-variance probing.
+3. E1 core comparison (MNIST, ≥3 seeds) → results table + plots.
+4. E2 τ/σ sweep; E3 layer-position sweep; E4 train/test × MC; E5 robustness; E6 CIFAR-10.
+5. Statistical tests (paired t-test across seeds), calibration curves, error analysis.
+
+### Baselines
+Deterministic net (reference); Dropout / MC-dropout (canonical activation sampling);
+additive Gaussian noise (unlearned); "sampling-off" τ→0 / σ→0 limit (isolates the act of
+sampling from the distributional layer).
+
+### Evaluation Metrics
+Test accuracy & error; NLL/cross-entropy; **ECE** (15-bin) for calibration; predictive
+entropy; robust accuracy under input Gaussian noise (severity sweep); generalization gap
+(train−test acc); gradient variance at the sampling layer. Single-sample **and**
+MC-averaged (K samples) reported for stochastic models.
+
+### Statistical Analysis Plan
+Each config run with seeds {0,1,2} (more for the core table if time permits). Report
+mean ± std. Compare each sampling variant to deterministic with a **paired t-test** across
+seeds; significance α=0.05; also report effect size (Cohen's d) and 95% CIs. No test-set
+peeking for tuning — τ/σ chosen on a validation split.
+
+## Expected Outcomes
+Supportive: stochastic variants trade a small single-sample accuracy cost for better
+calibration / smaller generalization gap / better noise robustness; MC-averaging recovers
+accuracy; effects scale with τ/σ and depend on layer position and distribution type.
+Refuting: sampling only hurts with no compensating benefit on any metric, or is
+indistinguishable from deterministic (e.g. downstream layers invert/ignore the noise — the
+VQ-VAE caution).
+
+## Timeline and Milestones
+- Setup + data/EDA: ~15 min. Implementation + smoke test: ~40 min. E1–E6 runs: ~60–90 min
+  (MNIST runs are seconds–minutes each on A6000; CIFAR a few min each). Analysis + figures:
+  ~30 min. Report: ~25 min. Buffer ~25%.
+
+## Potential Challenges
+- **Gradient blocking** at hard samples → use straight-through / Gumbel relaxation.
+- **Downstream inversion** of soft samples (VQ-VAE caution) → include hard/ST variants.
+- **Dead/indecisive units** → monitor unit usage; keep runs short enough to iterate.
+- **τ scale sensitivity** → sweep and anneal; cap τ≈0.5 per the literature.
+- One GPU is busy; use a free A6000 (set CUDA_VISIBLE_DEVICES).
+
+## Success Criteria
+- A clean, reproducible framework + a results table covering all variants/baselines on
+  MNIST with ≥3 seeds and statistical tests.
+- At least the τ/σ sweep, train/test×MC ablation, and robustness eval completed, with
+  figures.
+- A clear, evidence-based answer to "what does intermediate-layer sampling do?", honestly
+  reporting costs and any benefits — even if null.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: Sampling Neural Network
+
+**Research hypothesis.** Investigate the effects of *sampling from the distribution
+of activations at an intermediate neural-network layer*, analogous to sampling from
+the final softmax layer, to understand how this impacts model behavior and performance.
+
+**Prepared:** 2026-06-15 · 13 papers reviewed (4 deep-read in full).
+
+---
+
+## 1. Research Area Overview
+
+The hypothesis sits at the intersection of three established threads:
+
+1. **Stochastic neurons / stochastic activations** — replacing a deterministic
+   hidden activation `a` with a *sample* from a distribution parameterized by `a`
+   (Bernoulli, Gaussian, or categorical). This is *literally* the project's idea.
+2. **Reparameterization & differentiable sampling** — the machinery that makes
+   training through a sampling node possible (VAE, Concrete/Gumbel-Softmax, stochastic
+   backprop). Without it, sampling at an intermediate layer blocks gradients.
+3. **Stochasticity as regularization / Bayesian inference / robustness** — dropout,
+   variational dropout, information bottleneck, stochastic activation pruning — which
+   show *why* sampling activations changes behavior (uncertainty, generalization,
+   robustness, compression).
+
+A key conceptual framing recurs across the literature: **sampling from the final
+softmax is categorical sampling**; the project generalizes this operation to
+intermediate layers. The literature already provides the exact tools (Gumbel-Softmax
+for the categorical case, the reparameterization trick for the continuous case,
+straight-through / REINFORCE for the discrete/non-differentiable case) — but no paper
+isolates and systematically studies *intermediate-layer activation sampling as the
+object of study itself*. That is the gap this project targets.
+
+---
+
+## 2. Key Papers
+
+### 2.1 Foundational mechanism papers (deep-read)
+
+#### Estimating or Propagating Gradients Through Stochastic Neurons (Bengio, Léonard, Courville 2013)
+- **Contribution.** The canonical treatment of *sampling at hidden units*. A
+  stochastic binary neuron computes `p_i = sigmoid(a_i)` then **Bernoulli-samples**
+  `h_i ∈ {0,1}`. Because the sample is non-differentiable, the paper introduces and
+  compares **four gradient estimators**:
+  - **Straight-Through (ST)**: sample in forward pass, treat threshold as identity in
+    backward pass (`∂L/∂a_i ≈ ∂L/∂h_i`). *Best empirically*, simplest, biased.
+  - **Unbiased REINFORCE**: `ĝ_i = (h_i − sigmoid(a_i))·L`, with a per-unit
+    minimum-variance baseline `L̄_i`. Unbiased, needs no backprop, higher variance.
+  - **Stochastic-Times-Smooth (STS)**: `h_i = b_i·√p_i`, `b_i ~ Bernoulli(√p_i)` —
+    keeps a differentiable smooth factor while staying sparse.
+  - **Noisy rectifier**: additive noise inside a ReLU → stochastic exact-zeros.
+- **Results.** On MNIST conditional computation, ST gave the best test error (1.39%);
+  all four trained successfully. Noise helped even the *training* objective (exploration).
+- **Relevance.** Directly defines "sample from the distribution of an activation at an
+  intermediate layer" (the per-neuron Bernoulli analogue of softmax sampling) and
+  supplies the menu of gradient estimators the project must choose among. **Default
+  recommendation: straight-through.**
+
+#### Auto-Encoding Variational Bayes / VAE (Kingma & Welling 2013)
+- **Contribution.** The **reparameterization trick**: draw a latent (intermediate)
+  activation as `z = μ(x) + σ(x) ⊙ ε`, `ε ~ N(0, I)`, where `μ, σ` are network
+  outputs. Stochasticity is pushed into parameter-free noise `ε`, so the sampling
+  node is a deterministic differentiable function → standard backprop works.
+  Trained by maximizing the ELBO `= E_q[log p(x|z)] − KL(q(z|x) ‖ p(z))`.
+- **Results.** Faster convergence and better likelihood than Wake-Sleep / MCEM on
+  MNIST and Frey Faces; the KL term regularizes, so more latent units did not overfit;
+  `L=1` sample/datapoint suffices with minibatch ≈ 100.
+- **Relevance.** The latent layer **is** an intermediate activation-sampling layer
+  (continuous case). Provides the enabling technique and a ready objective structure
+  (per-layer KL-to-prior regularizer). Caveat: as stated it covers only *continuous*
+  activations — the discrete/softmax analogue needs relaxations (next).
+
+#### Categorical Reparameterization with Gumbel-Softmax (Jang, Gu, Poole 2016/17)
+- **Contribution.** Differentiable **categorical (softmax) sampling**. Gumbel-Max:
+  `z = one_hot(argmax_i [g_i + log π_i])`, `g_i ~ Gumbel(0,1)`. Relax the argmax to a
+  temperature-τ softmax: `y_i = softmax((log π_i + g_i)/τ)`. As τ→0 → true categorical
+  (one-hot); large τ → uniform/smooth. **Straight-Through Gumbel-Softmax** gives hard
+  one-hot forward, soft backward.
+- **Results.** Best among single-sample estimators on structured prediction and VAEs
+  (SBN/VAE NLL); 2×–9.9× faster than marginalization in semi-supervised classification
+  with matching accuracy.
+- **Relevance.** **The most direct match to the hypothesis.** Sampling from a softmax
+  *is* categorical sampling; this paper makes that operation differentiable *at
+  intermediate layers*. τ is the central knob interpolating deterministic-softmax ↔
+  true sampling; anneal τ (cap ~0.5) to trade bias vs gradient variance.
+
+#### Neural Discrete Representation Learning / VQ-VAE (van den Oord et al. 2017)
+- **Contribution.** A **discrete codebook** at the intermediate layer: encoder output
+  `z_e(x)` is quantized by nearest-neighbor to a codebook entry `z_q(x)=e_k`
+  (`k = argmin_j ‖z_e(x)−e_j‖`). Trained with reconstruction + codebook loss
+  `‖sg[z_e]−e‖²` + commitment loss `β‖z_e−sg[e]‖²` and a **straight-through** gradient
+  copy. A separate autoregressive prior is fit over codes to *sample/generate*.
+- **Results.** First discrete-latent model to match continuous VAEs (CIFAR-10 4.67 vs
+  4.51 bits/dim); avoids posterior collapse; learns phoneme-like / object-like codes.
+- **Relevance.** Concrete, successful instance of a *categorical distribution over an
+  intermediate activation*. **Important warning for this project:** a purely *soft*
+  intermediate relaxation can be *inverted/ignored* by a powerful downstream decoder —
+  hard discretization (or a collapse-prevention mechanism) may be needed. Forcing
+  sampling at the intermediate layer pushed representations toward abstract, high-level
+  factors.
+
+### 2.2 Supporting / contrasting papers (abstract-level)
+
+| Paper | Year | What it adds | Where stochasticity lives |
+|-------|------|--------------|---------------------------|
+| **The Concrete Distribution** (Maddison et al.) | 2016 | Independent derivation of the continuous discrete-relaxation density + bias/variance theory underpinning Gumbel-Softmax | Activations (categorical) |
+| **Stochastic Backpropagation** (Rezende et al.) | 2014 | Concurrent reparameterized-gradient rules for deep latent Gaussian models | Activations (continuous) |
+| **ProbAct** (Lee et al.) | 2019 | A *stochastic activation function*: output sampled from a per-element (mean, variance) distribution at every layer; learnable variance; reports generalization gains | **Activations (every layer)** — closest drop-in to the hypothesis |
+| **Dropout as a Bayesian Approximation** (Gal & Ghahramani) | 2016 | Dropout = sampling a Bernoulli mask over activations = approx. Bayesian inference; MC-dropout for uncertainty | Activations (Bernoulli mask) |
+| **Variational Dropout + Local Reparameterization** (Kingma et al.) | 2015 | Weight uncertainty → per-activation local noise, variance ∝ 1/batch; learnable rates | Activations (Gaussian, induced) |
+| **Weight Uncertainty / Bayes by Backprop** (Blundell et al.) | 2015 | Reparameterized sampling of *weights* instead of activations | Weights (contrast) |
+| **Noisy Activation Functions** (Gülçehre et al.) | 2016 | Inject noise into saturating activations so gradients flow; noise aids optimization+exploration | Activations (additive noise) |
+| **Deep Variational Information Bottleneck** (Alemi et al.) | 2016 | Stochastic bottleneck trained to compress input while keeping label info; reparameterized sampling; improves robustness/generalization | Activations (bottleneck) |
+| **Stochastic Activation Pruning** (Dhillon et al.) | 2018 | *Sample* which activations to keep (prob ∝ magnitude) at test time for adversarial robustness (note: later adversarial re-evaluation reduced its robustness — treat robustness claims cautiously) | Activations (sampled mask) |
+
+---
+
+## 3. Common Methodologies
+
+- **Reparameterization (path-derivative) gradients** — continuous activations:
+  `sample = f(params, noise)` with parameter-free noise (VAE, Rezende, Concrete).
+  Low variance; the default when activations are continuous.
+- **Gumbel-Softmax / Concrete relaxation** — categorical activations: temperature-τ
+  softmax over `log π + Gumbel noise`. Anneal τ; ST variant for hard samples.
+- **Straight-Through estimator** — non-differentiable (binary/quantized) activations:
+  hard forward, identity (or soft) backward. Cheap, biased, empirically strong
+  (Bengio 2013, VQ-VAE, ST-Gumbel).
+- **Score-function / REINFORCE (+ baselines)** — fully general, unbiased, no backprop
+  required, but high variance; needs variance reduction to compete.
+- **Auxiliary objectives** — KL-to-prior (VAE/VIB), commitment/codebook loss (VQ-VAE),
+  sparsity/firing-rate targets (Bengio), to keep the sampled distribution well-behaved.
+
+## 4. Standard Baselines (for this project)
+
+1. **Deterministic network** (no sampling) — the reference accuracy/calibration.
+2. **Dropout / MC-dropout** — the most common "sampling over activations" baseline.
+3. **Gaussian-noise injection** at the same layer (additive noise, no learned σ).
+4. **Deterministic-softmax / temperature-only** at the chosen layer (sampling off,
+   τ→0 limit) — isolates the effect of *sampling* vs the *distributional layer* itself.
+5. **VAE-style continuous reparameterized sampling** at the layer (μ, σ heads).
+6. **Gumbel-Softmax / ST-Gumbel** categorical sampling at the layer.
+
+## 5. Evaluation Metrics
+
+- **Task performance**: test accuracy / error (MNIST, CIFAR-10); NLL / cross-entropy.
+- **Calibration & uncertainty**: ECE, NLL, predictive entropy; behavior under
+  MC-averaging of multiple samples at test time.
+- **Robustness**: accuracy under input noise / corruptions / (optionally) adversarial
+  perturbations — motivated by SAP and VIB.
+- **Generalization gap**: train vs test error as a function of *where* and *how much*
+  sampling is applied.
+- **Representation quality**: linear-probe accuracy on the sampled layer; for discrete
+  variants, code-usage / cluster-purity (à la VQ-VAE phoneme mapping).
+- **Training dynamics**: gradient variance, convergence speed, sensitivity to τ /
+  noise scale / estimator choice.
+
+## 6. Datasets in the Literature
+
+- **MNIST** — used by Bengio 2013, VAE, Gumbel-Softmax (and most stochastic-neuron
+  work). Primary benchmark here for fast, comparable iteration. *(downloaded)*
+- **CIFAR-10** — used by VQ-VAE; secondary, higher-difficulty benchmark. *(downloaded)*
+- Frey Faces, ImageNet, audio (VCTK/LibriSpeech), DeepMind Lab video — used by VAE /
+  VQ-VAE; out of scope for an initial study but relevant if scaling.
+
+## 7. Gaps and Opportunities
+
+- **No systematic study of intermediate-layer sampling as the variable of interest.**
+  Prior work either samples for a *purpose* (generative modeling, regularization,
+  robustness) or at a *fixed* place (latent bottleneck, every layer). A controlled
+  sweep over *which layer*, *which distribution* (Bernoulli / Gaussian / categorical),
+  *sampling temperature/scale*, and *gradient estimator* — measuring the same metrics
+  throughout — is missing and is exactly the hypothesis.
+- **Train-time vs test-time sampling** is under-explored as a clean ablation
+  (sample only in training? only at test like MC-dropout/SAP? both?).
+- **Single-sample vs MC-averaged inference** trade-offs at intermediate layers.
+- **The softmax-sampling analogy** is rarely made explicit: applying *categorical
+  sampling* to a hidden layer (via Gumbel-Softmax) and comparing to the continuous
+  (Gaussian/VAE) and binary (Bengio) cases under one protocol.
+
+## 8. Recommendations for Our Experiment
+
+- **Recommended datasets**: start with **MNIST** (fast, directly comparable to the
+  foundational papers), then **CIFAR-10** for a harder test. Both already downloaded.
+- **Recommended architecture**: a small MLP and a small CNN (reuse
+  `code/pytorch-examples/mnist` and `vae`); insert a drop-in `SamplingLayer` after a
+  chosen hidden layer.
+- **Recommended sampling variants to compare** (the core ablation):
+  1. Continuous **Gaussian** (μ, log σ heads) via reparameterization — VAE-style.
+  2. **Categorical / Gumbel-Softmax** (+ ST variant) — the direct softmax analogue.
+  3. **Bernoulli** stochastic neurons via straight-through — Bengio-style.
+- **Recommended gradient estimators**: **straight-through** (default, cheap),
+  **reparameterization** (continuous), with **REINFORCE+baseline** as an unbiased
+  reference if variance/bias is in question.
+- **Recommended baselines**: deterministic net, dropout/MC-dropout, additive Gaussian
+  noise, and the τ→0 / sampling-off ablation (to separate the *distributional layer*
+  from the *act of sampling*).
+- **Recommended metrics**: accuracy/NLL + calibration (ECE) + robustness-to-noise +
+  generalization gap + gradient variance; report single-sample and MC-averaged.
+- **Methodological cautions** (from the deep reads):
+  - A *soft* intermediate sample can be **inverted/ignored** by a strong downstream
+    stack (VQ-VAE) — include a hard/ST variant.
+  - **Anneal temperature** (Gumbel-Softmax) and watch the bias↔variance trade-off.
+  - Watch for **degenerate units** (dead / indecisive) — use firing-rate/KL or
+    commitment-style regularizers (Bengio, VQ-VAE).
+  - Add a **per-layer KL-to-prior** term when the sampling distribution is learned, as
+    a built-in regularizer (VAE/VIB).
+  - Decide and **clearly separate train-time vs test-time** sampling in the protocol.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: Ari Holtzman and NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{Ari Holtzman and NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .claude/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.

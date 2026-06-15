@@ -1,0 +1,41 @@
+{
+  "cifar10": {
+    "train_per_batch": [
+      10000,
+      3072
+    ],
+    "n_batches_train": 5,
+    "test_batch": 1,
+    "image_format": "32x32x3 row-major (R,G,B planes) flattened to 3072",
+    "classes": [
+      "airplane",
+      "automobile",
+      "bird",
+      "cat",
+      "deer",
+      "dog",
+      "frog",
+      "horse",
+      "ship",
+      "truck"
+    ],
+    "n_classes": 10
+  },
+  "mnist": {
+    "train_images": [
+      60000,
+      28,
+      28
+    ],
+    "test_images": [
+      10000,
+      28,
+      28
+    ],
+    "image_shape": [
+      28,
+      28
+    ],
+    "n_classes": 10
+  }
+}

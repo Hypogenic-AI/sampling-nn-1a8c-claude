@@ -1,0 +1,11 @@
+mode,knob_val,acc_s1,acc_mc,ece
+gauss_noise,0.1,0.979,0.979,0.0111
+gauss_noise,0.3,0.98,0.9804,0.0123
+gauss_noise,0.6,0.9801,0.9814,0.0102
+gauss_noise,1.0,0.9782,0.9806,0.0105
+gauss_noise,2.0,0.9764,0.9797,0.0115
+gumbel_softmax,0.1,0.6638,0.6698,0.0219
+gumbel_softmax,0.5,0.8995,0.9191,0.0194
+gumbel_softmax,1.0,0.9572,0.9629,0.0127
+gumbel_softmax,2.0,0.9691,0.9736,0.0121
+gumbel_softmax,5.0,0.9764,0.9784,0.012

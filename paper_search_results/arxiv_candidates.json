@@ -1,0 +1,560 @@
+[
+  {
+    "id": "1609.04846",
+    "title": "A Tutorial about Random Neural Networks in Supervised Learning",
+    "year": 2016,
+    "authors": [
+      "Sebasti\u00e1n Basterrech",
+      "Gerardo Rubino"
+    ],
+    "pdf": "https://arxiv.org/pdf/1609.04846v1",
+    "summary": "Random Neural Networks (RNNs) are a class of Neural Networks (NNs) that can also be seen as a specific type of queuing network. They have been successfully used in several domains during the last 25 years, as queuing networks to analyze the performance of resource sharing in many engineering areas, as learning tools and in combinatorial optimization, where they are seen as neural systems, and also as models of neurological aspects of living beings. In this article we focus on their learning capabilities, and more specifically, we present a practical guide for using the RNN to solve supervised ",
+    "query": "sampling intermediate layer activations stochastic neural network"
+  },
+  {
+    "id": "2502.01654",
+    "title": "Predicting concentration levels of air pollutants by transfer learning and recurrent neural network",
+    "year": 2025,
+    "authors": [
+      "Iat Hang Fong",
+      "Tengyue Li",
+      "Simon Fong",
+      "Raymond K. Wong"
+    ],
+    "pdf": "https://arxiv.org/pdf/2502.01654v1",
+    "summary": "Air pollution (AP) poses a great threat to human health, and people are paying more attention than ever to its prediction. Accurate prediction of AP helps people to plan for their outdoor activities and aids protecting human health. In this paper, long-short term memory (LSTM) recurrent neural networks (RNNs) have been used to predict the future concentration of air pollutants (APS) in Macau. Additionally, meteorological data and data on the concentration of APS have been utilized. Moreover, in Macau, some air quality monitoring stations (AQMSs) have less observed data in quantity, and, at the",
+    "query": "sampling intermediate layer activations stochastic neural network"
+  },
+  {
+    "id": "2001.10696",
+    "title": "Spiking Inception Module for Multi-layer Unsupervised Spiking Neural Networks",
+    "year": 2020,
+    "authors": [
+      "Mingyuan Meng",
+      "Xingyu Yang",
+      "Shanlin Xiao",
+      "Zhiyi Yu"
+    ],
+    "pdf": "https://arxiv.org/pdf/2001.10696v5",
+    "summary": "Spiking Neural Network (SNN), as a brain-inspired approach, is attracting attention due to its potential to produce ultra-high-energy-efficient hardware. Competitive learning based on Spike-Timing-Dependent Plasticity (STDP) is a popular method to train an unsupervised SNN. However, previous unsupervised SNNs trained through this method are limited to a shallow network with only one learnable layer and cannot achieve satisfactory results when compared with multi-layer SNNs. In this paper, we eased this limitation by: 1)We proposed a Spiking Inception (Sp-Inception) module, inspired by the Ince",
+    "query": "sampling intermediate layer activations stochastic neural network"
+  },
+  {
+    "id": "2306.14753",
+    "title": "The Deep Arbitrary Polynomial Chaos Neural Network or how Deep Artificial Neural Networks could benefit from Data-Driven Homogeneous Chaos Theory",
+    "year": 2023,
+    "authors": [
+      "Sergey Oladyshkin",
+      "Timothy Praditia",
+      "Ilja Kr\u00f6ker",
+      "Farid Mohammadi"
+    ],
+    "pdf": "https://arxiv.org/pdf/2306.14753v1",
+    "summary": "Artificial Intelligence and Machine learning have been widely used in various fields of mathematical computing, physical modeling, computational science, communication science, and stochastic analysis. Approaches based on Deep Artificial Neural Networks (DANN) are very popular in our days. Depending on the learning task, the exact form of DANNs is determined via their multi-layer architecture, activation functions and the so-called loss function. However, for a majority of deep learning approaches based on DANNs, the kernel structure of neural signal processing remains the same, where the node",
+    "query": "sampling intermediate layer activations stochastic neural network"
+  },
+  {
+    "id": "1506.08473",
+    "title": "Beating the Perils of Non-Convexity: Guaranteed Training of Neural Networks using Tensor Methods",
+    "year": 2015,
+    "authors": [
+      "Majid Janzamin",
+      "Hanie Sedghi",
+      "Anima Anandkumar"
+    ],
+    "pdf": "https://arxiv.org/pdf/1506.08473v3",
+    "summary": "Training neural networks is a challenging non-convex optimization problem, and backpropagation or gradient descent can get stuck in spurious local optima. We propose a novel algorithm based on tensor decomposition for guaranteed training of two-layer neural networks. We provide risk bounds for our proposed method, with a polynomial sample complexity in the relevant parameters, such as input dimension and number of neurons. While learning arbitrary target functions is NP-hard, we provide transparent conditions on the function and the input for learnability. Our training method is based on tenso",
+    "query": "sampling intermediate layer activations stochastic neural network"
+  },
+  {
+    "id": "1803.02421",
+    "title": "Masked Conditional Neural Networks for Audio Classification",
+    "year": 2018,
+    "authors": [
+      "Fady Medhat",
+      "David Chesmore",
+      "John Robinson"
+    ],
+    "pdf": "https://arxiv.org/pdf/1803.02421v2",
+    "summary": "We present the ConditionaL Neural Network (CLNN) and the Masked ConditionaL Neural Network (MCLNN) designed for temporal signal recognition. The CLNN takes into consideration the temporal nature of the sound signal and the MCLNN extends upon the CLNN through a binary mask to preserve the spatial locality of the features and allows an automated exploration of the features combination analogous to hand-crafting the most relevant features for the recognition task. MCLNN has achieved competitive recognition accuracies on the GTZAN and the ISMIR2004 music datasets that surpass several state-of-the-",
+    "query": "sampling intermediate layer activations stochastic neural network"
+  },
+  {
+    "id": "2603.29727",
+    "title": "Latent-Y: A Lab-Validated Autonomous Agent for De Novo Drug Design",
+    "year": 2026,
+    "authors": [
+      " Latent Labs Team",
+      "Sebastian M. Schmon",
+      "Daniella Pretorius",
+      "Simon Mathis"
+    ],
+    "pdf": "https://arxiv.org/pdf/2603.29727v2",
+    "summary": "Drug discovery relies on iterative expert workflows that are slow to parallelize and difficult to scale. Here we introduce Latent-Y, an AI agent that autonomously executes complete antibody design campaigns from text prompts, covering literature review, target analysis, epitope identification, candidate design, computational validation, and selection of lab-ready sequences. Latent-Y is integrated into the Latent Labs Platform, where it operates in the same environment as drug-discovery experts with access to bioinformatics tools, biological databases, and scientific literature. The agent can r",
+    "query": "variational autoencoder reparameterization latent sampling"
+  },
+  {
+    "id": "2507.19375",
+    "title": "Latent-X: An Atom-level Frontier Model for De Novo Protein Binder Design",
+    "year": 2025,
+    "authors": [
+      " Latent Labs Team",
+      "Alex Bridgland",
+      "Jonathan Crabb\u00e9",
+      "Henry Kenlay"
+    ],
+    "pdf": "https://arxiv.org/pdf/2507.19375v1",
+    "summary": "Traditional drug discovery relies on rounds of screening millions of candidate molecules with low success rates, making drug discovery time and resource intensive. To overcome this screening bottleneck, we introduce Latent-X, an all-atom protein design model that enables a new paradigm of precision AI design. Given a target protein epitope, Latent-X jointly generates the all atom structure and sequence of the protein binder and target, directly modelling the non-covalent interactions essential for specific binding. We demonstrate its efficacy across two therapeutically relevant modalities thro",
+    "query": "variational autoencoder reparameterization latent sampling"
+  },
+  {
+    "id": "2512.20263",
+    "title": "Drug-like antibodies with low immunogenicity in human panels designed with Latent-X2",
+    "year": 2025,
+    "authors": [
+      " Latent Labs Team",
+      "Henry Kenlay",
+      "Daniella Pretorius",
+      "Jonathan Crabb\u00e9"
+    ],
+    "pdf": "https://arxiv.org/pdf/2512.20263v1",
+    "summary": "Drug discovery has long sought computational systems capable of designing drug-like molecules directly: developable and non-immunogenic from the start. Here we introduce Latent-X2, a frontier generative model that achieves this goal through zero-shot design of antibodies with strong binding affinities, drug-like properties, and, for the first time for any de novo generated antibody, confirmed low immunogenicity in human donor panels. Latent-X2 is an all-atom model conditioned on target structure, epitope specification, and optional antibody framework, jointly generating sequences and structure",
+    "query": "variational autoencoder reparameterization latent sampling"
+  },
+  {
+    "id": "1610.05683",
+    "title": "Reparameterization Gradients through Acceptance-Rejection Sampling Algorithms",
+    "year": 2016,
+    "authors": [
+      "Christian A. Naesseth",
+      "Francisco J. R. Ruiz",
+      "Scott W. Linderman",
+      "David M. Blei"
+    ],
+    "pdf": "https://arxiv.org/pdf/1610.05683v3",
+    "summary": "Variational inference using the reparameterization trick has enabled large-scale approximate Bayesian inference in complex probabilistic models, leveraging stochastic optimization to sidestep intractable expectations. The reparameterization trick is applicable when we can simulate a random variable by applying a differentiable deterministic function on an auxiliary random variable whose distribution is fixed. For many distributions of interest (such as the gamma or Dirichlet), simulation of random variables relies on acceptance-rejection sampling. The discontinuity introduced by the accept-rej",
+    "query": "variational autoencoder reparameterization latent sampling"
+  },
+  {
+    "id": "1708.07012",
+    "title": "Variational autoencoders for tissue heterogeneity exploration from (almost) no preprocessed mass spectrometry imaging data",
+    "year": 2017,
+    "authors": [
+      "Paolo Inglese",
+      "James L. Alexander",
+      "Anna Mroz",
+      "Zoltan Takats"
+    ],
+    "pdf": "https://arxiv.org/pdf/1708.07012v2",
+    "summary": "The paper presents the application of Variational Autoencoders (VAE) for data dimensionality reduction and explorative analysis of mass spectrometry imaging data (MSI). The results confirm that VAEs are capable of detecting the patterns associated with the different tissue sub-types with performance than standard approaches.",
+    "query": "variational autoencoder reparameterization latent sampling"
+  },
+  {
+    "id": "2303.02733",
+    "title": "Reparameterization through Spatial Gradient Scaling",
+    "year": 2023,
+    "authors": [
+      "Alexander Detkov",
+      "Mohammad Salameh",
+      "Muhammad Fetrat Qharabagh",
+      "Jialin Zhang"
+    ],
+    "pdf": "https://arxiv.org/pdf/2303.02733v2",
+    "summary": "Reparameterization aims to improve the generalization of deep neural networks by transforming convolutional layers into equivalent multi-branched structures during training. However, there exists a gap in understanding how reparameterization may change and benefit the learning process of neural networks. In this paper, we present a novel spatial gradient scaling method to redistribute learning focus among weights in convolutional networks. We prove that spatial gradient scaling achieves the same learning dynamics as a branched reparameterization yet without introducing structural changes into ",
+    "query": "variational autoencoder reparameterization latent sampling"
+  },
+  {
+    "id": "1308.3432",
+    "title": "Estimating or Propagating Gradients Through Stochastic Neurons for Conditional Computation",
+    "year": 2013,
+    "authors": [
+      "Yoshua Bengio",
+      "Nicholas L\u00e9onard",
+      "Aaron Courville"
+    ],
+    "pdf": "https://arxiv.org/pdf/1308.3432v1",
+    "summary": "Stochastic neurons and hard non-linearities can be useful for a number of reasons in deep learning models, but in many cases they pose a challenging problem: how to estimate the gradient of a loss function with respect to the input of such stochastic or non-smooth neurons? I.e., can we \"back-propagate\" through these stochastic neurons? We examine this question, existing approaches, and compare four families of solutions, applicable in different settings. One of them is the minimum variance unbiased gradient estimator for stochatic binary neurons (a special case of the REINFORCE algorithm). A s",
+    "query": "stochastic neurons straight-through estimator gradient"
+  },
+  {
+    "id": "1305.2982",
+    "title": "Estimating or Propagating Gradients Through Stochastic Neurons",
+    "year": 2013,
+    "authors": [
+      "Yoshua Bengio"
+    ],
+    "pdf": "https://arxiv.org/pdf/1305.2982v1",
+    "summary": "Stochastic neurons can be useful for a number of reasons in deep learning models, but in many cases they pose a challenging problem: how to estimate the gradient of a loss function with respect to the input of such stochastic neurons, i.e., can we \"back-propagate\" through these stochastic neurons? We examine this question, existing approaches, and present two novel families of solutions, applicable in different settings. In particular, it is demonstrated that a simple biologically plausible formula gives rise to an an unbiased (but noisy) estimator of the gradient with respect to a binary stoc",
+    "query": "stochastic neurons straight-through estimator gradient"
+  },
+  {
+    "id": "1703.00788",
+    "title": "A Robust Adaptive Stochastic Gradient Method for Deep Learning",
+    "year": 2017,
+    "authors": [
+      "Caglar Gulcehre",
+      "Jose Sotelo",
+      "Marcin Moczulski",
+      "Yoshua Bengio"
+    ],
+    "pdf": "https://arxiv.org/pdf/1703.00788v1",
+    "summary": "Stochastic gradient algorithms are the main focus of large-scale optimization problems and led to important successes in the recent advancement of the deep learning algorithms. The convergence of SGD depends on the careful choice of learning rate and the amount of the noise in stochastic estimates of the gradients. In this paper, we propose an adaptive learning rate algorithm, which utilizes stochastic curvature information of the loss function for automatically tuning the learning rates. The information about the element-wise curvature of the loss function is estimated from the local statisti",
+    "query": "stochastic neurons straight-through estimator gradient"
+  },
+  {
+    "id": "2206.10370",
+    "title": "A new generation of reduction methods for networks of neurons with complex dynamic phenotypes",
+    "year": 2022,
+    "authors": [
+      "In\u00eas C. Guerreiro",
+      "Matteo di Volo",
+      "Boris Gutkin"
+    ],
+    "pdf": "https://arxiv.org/pdf/2206.10370v2",
+    "summary": "Collective dynamics of spiking networks of neurons has been of central interest to both computation neuroscience and network science. Over the past years a new generation of neural population models based on exact reductions (ER) of spiking networks have been developed. However, most of these efforts have been limited to networks of neurons with simple dynamics (e.g. the quadratic integrate and fire models). Here, we present an extension of ER to conductance-based networks of two-dimensional Izhikevich neuron models. We employ an adiabatic approximation, which allows us to analytically solve t",
+    "query": "stochastic neurons straight-through estimator gradient"
+  },
+  {
+    "id": "2212.02083",
+    "title": "On the Overlooked Structure of Stochastic Gradients",
+    "year": 2022,
+    "authors": [
+      "Zeke Xie",
+      "Qian-Yuan Tang",
+      "Mingming Sun",
+      "Ping Li"
+    ],
+    "pdf": "https://arxiv.org/pdf/2212.02083v3",
+    "summary": "Stochastic gradients closely relate to both optimization and generalization of deep neural networks (DNNs). Some works attempted to explain the success of stochastic optimization for deep learning by the arguably heavy-tail properties of gradient noise, while other works presented theoretical and empirical evidence against the heavy-tail hypothesis on gradient noise. Unfortunately, formal statistical tests for analyzing the structure and heavy tails of stochastic gradients in deep learning are still under-explored. In this paper, we mainly make two contributions. First, we conduct formal stati",
+    "query": "stochastic neurons straight-through estimator gradient"
+  },
+  {
+    "id": "2411.08205",
+    "title": "Consistent model selection for estimating functional interactions among stochastic neurons with variable-length memory",
+    "year": 2024,
+    "authors": [
+      "Ricardo F. Ferreira",
+      "Matheus E. Pacola",
+      "Vitor G. Schiavone",
+      "Rodrigo F. O. Pena"
+    ],
+    "pdf": "https://arxiv.org/pdf/2411.08205v2",
+    "summary": "We address the problem of identifying functional interactions among stochastic neurons with variable-length memory from their spiking activity. The neuronal network is modeled by a stochastic system of interacting point processes with variable-length memory. Each chain describes the activity of a single neuron, indicating whether it spikes at a given time. One neuron's influence on another can be either excitatory or inhibitory. To identify the existence and nature of an interaction between a neuron and its postsynaptic counterpart, we propose a model selection procedure based on the observati",
+    "query": "stochastic neurons straight-through estimator gradient"
+  },
+  {
+    "id": "2510.15541",
+    "title": "An Empirical Study on Variance-based MC Dropout Uncertainty-Error Correlation in 2D Brain Tumor Segmentation",
+    "year": 2025,
+    "authors": [
+      "Saumya B"
+    ],
+    "pdf": "https://arxiv.org/pdf/2510.15541v2",
+    "summary": "Accurate brain tumor segmentation from MRI is vital for diagnosis and treatment planning. Although Monte Carlo (MC) Dropout is widely used to estimate model uncertainty, the effectiveness of variance-based uncertainty - computed as pixel-wise variance across stochastic forward passes - in identifying segmentation errors, particularly near tumor boundaries, remains insufficiently studied. This study empirically examines the relationship between variance-based MC Dropout uncertainty and segmentation error in 2D brain tumor MRI segmentation using a U-Net trained under four augmentation settings: ",
+    "query": "dropout bayesian approximation uncertainty"
+  },
+  {
+    "id": "1506.02157",
+    "title": "Dropout as a Bayesian Approximation: Appendix",
+    "year": 2015,
+    "authors": [
+      "Yarin Gal",
+      "Zoubin Ghahramani"
+    ],
+    "pdf": "https://arxiv.org/pdf/1506.02157v5",
+    "summary": "We show that a neural network with arbitrary depth and non-linearities, with dropout applied before every weight layer, is mathematically equivalent to an approximation to a well known Bayesian model. This interpretation might offer an explanation to some of dropout's key properties, such as its robustness to over-fitting. Our interpretation allows us to reason about uncertainty in deep learning, and allows the introduction of the Bayesian machinery into existing deep learning frameworks in a principled way.   This document is an appendix for the main paper \"Dropout as a Bayesian Approximation",
+    "query": "dropout bayesian approximation uncertainty"
+  },
+  {
+    "id": "1506.02142",
+    "title": "Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning",
+    "year": 2015,
+    "authors": [
+      "Yarin Gal",
+      "Zoubin Ghahramani"
+    ],
+    "pdf": "https://arxiv.org/pdf/1506.02142v6",
+    "summary": "Deep learning tools have gained tremendous attention in applied machine learning. However such tools for regression and classification do not capture model uncertainty. In comparison, Bayesian models offer a mathematically grounded framework to reason about model uncertainty, but usually come with a prohibitive computational cost. In this paper we develop a new theoretical framework casting dropout training in deep neural networks (NNs) as approximate Bayesian inference in deep Gaussian processes. A direct result of this theory gives us tools to model uncertainty with dropout NNs -- extracting",
+    "query": "dropout bayesian approximation uncertainty"
+  },
+  {
+    "id": "2501.11258",
+    "title": "Enhancing Uncertainty Estimation in Semantic Segmentation via Monte-Carlo Frequency Dropout",
+    "year": 2025,
+    "authors": [
+      "Tal Zeevi",
+      "Lawrence H. Staib",
+      "John A. Onofrey"
+    ],
+    "pdf": "https://arxiv.org/pdf/2501.11258v1",
+    "summary": "Monte-Carlo (MC) Dropout provides a practical solution for estimating predictive distributions in deterministic neural networks. Traditional dropout, applied within the signal space, may fail to account for frequency-related noise common in medical imaging, leading to biased predictive estimates. A novel approach extends Dropout to the frequency domain, allowing stochastic attenuation of signal frequencies during inference. This creates diverse global textural variations in feature maps while preserving structural integrity -- a factor we hypothesize and empirically show is contributing to acc",
+    "query": "dropout bayesian approximation uncertainty"
+  },
+  {
+    "id": "1712.02037",
+    "title": "Bayesian Policy Gradients via Alpha Divergence Dropout Inference",
+    "year": 2017,
+    "authors": [
+      "Peter Henderson",
+      "Thang Doan",
+      "Riashat Islam",
+      "David Meger"
+    ],
+    "pdf": "https://arxiv.org/pdf/1712.02037v1",
+    "summary": "Policy gradient methods have had great success in solving continuous control tasks, yet the stochastic nature of such problems makes deterministic value estimation difficult. We propose an approach which instead estimates a distribution by fitting the value function with a Bayesian Neural Network. We optimize an $\u03b1$-divergence objective with Bayesian dropout approximation to learn and estimate this distribution. We show that using the Monte Carlo posterior mean of the Bayesian value function distribution, rather than a deterministic network, improves stability and performance of policy gradien",
+    "query": "dropout bayesian approximation uncertainty"
+  },
+  {
+    "id": "1811.10041",
+    "title": "BDLOB: Bayesian Deep Convolutional Neural Networks for Limit Order Books",
+    "year": 2018,
+    "authors": [
+      "Zihao Zhang",
+      "Stefan Zohren",
+      "Stephen Roberts"
+    ],
+    "pdf": "https://arxiv.org/pdf/1811.10041v1",
+    "summary": "We showcase how dropout variational inference can be applied to a large-scale deep learning model that predicts price movements from limit order books (LOBs), the canonical data source representing trading and pricing movements. We demonstrate that uncertainty information derived from posterior predictive distributions can be utilised for position sizing, avoiding unnecessary trades and improving profits. Further, we test our models by using millions of observations across several instruments and markets from the London Stock Exchange. Our results suggest that those Bayesian techniques not onl",
+    "query": "dropout bayesian approximation uncertainty"
+  },
+  {
+    "id": "1611.01144",
+    "title": "Categorical Reparameterization with Gumbel-Softmax",
+    "year": 2016,
+    "authors": [
+      "Eric Jang",
+      "Shixiang Gu",
+      "Ben Poole"
+    ],
+    "pdf": "https://arxiv.org/pdf/1611.01144v5",
+    "summary": "Categorical variables are a natural choice for representing discrete structure in the world. However, stochastic neural networks rarely use categorical latent variables due to the inability to backpropagate through samples. In this work, we present an efficient gradient estimator that replaces the non-differentiable sample from a categorical distribution with a differentiable sample from a novel Gumbel-Softmax distribution. This distribution has the essential property that it can be smoothly annealed into a categorical distribution. We show that our Gumbel-Softmax estimator outperforms state-o",
+    "query": "Gumbel-Softmax categorical reparameterization discrete latent"
+  },
+  {
+    "id": "1912.09588",
+    "title": "Invertible Gaussian Reparameterization: Revisiting the Gumbel-Softmax",
+    "year": 2019,
+    "authors": [
+      "Andres Potapczynski",
+      "Gabriel Loaiza-Ganem",
+      "John P. Cunningham"
+    ],
+    "pdf": "https://arxiv.org/pdf/1912.09588v5",
+    "summary": "The Gumbel-Softmax is a continuous distribution over the simplex that is often used as a relaxation of discrete distributions. Because it can be readily interpreted and easily reparameterized, it enjoys widespread use. We propose a modular and more flexible family of reparameterizable distributions where Gaussian noise is transformed into a one-hot approximation through an invertible function. This invertible function is composed of a modified softmax and can incorporate diverse transformations that serve different specific purposes. For example, the stick-breaking procedure allows us to exten",
+    "query": "Gumbel-Softmax categorical reparameterization discrete latent"
+  },
+  {
+    "id": "2005.02372",
+    "title": "Community Detection Clustering via Gumbel Softmax",
+    "year": 2020,
+    "authors": [
+      "Deepak Bhaskar Acharya",
+      "Huaming Zhang"
+    ],
+    "pdf": "https://arxiv.org/pdf/2005.02372v2",
+    "summary": "Recently, in many systems such as speech recognition and visual processing, deep learning has been widely implemented. In this research, we are exploring the possibility of using deep learning in community detection among the graph datasets. Graphs have gained growing traction in different fields, including social networks, information graphs, the recommender system, and also life sciences. In this paper, we propose a method of community detection clustering the nodes of various graph datasets. We cluster different category datasets that belong to Affiliation networks, Animal networks, Human c",
+    "query": "Gumbel-Softmax categorical reparameterization discrete latent"
+  },
+  {
+    "id": "0902.0668",
+    "title": "Application of the Weil representation: diagonalization of the discrete Fourier transform",
+    "year": 2009,
+    "authors": [
+      "SHamgar Gurevich",
+      "Ronny Hadani"
+    ],
+    "pdf": "https://arxiv.org/pdf/0902.0668v1",
+    "summary": "  We survey a new application of the Weil representation to construct a canonical basis of eigenvectors for the discrete Fourier transform (DFT). The transition matrix from the standard basis to the canonical basis defines a novel transform which we call the discrete oscillator transform (DOT for short). In addition, we describe a fast algorithm for computing the DOT in certain cases.",
+    "query": "VQ-VAE discrete latent representation neural discrete"
+  },
+  {
+    "id": "2102.05749",
+    "title": "Self-Supervised VQ-VAE for One-Shot Music Style Transfer",
+    "year": 2021,
+    "authors": [
+      "Ond\u0159ej C\u00edfka",
+      "Alexey Ozerov",
+      "Umut \u015eim\u015fekli",
+      "Ga\u00ebl Richard"
+    ],
+    "pdf": "https://arxiv.org/pdf/2102.05749v2",
+    "summary": "Neural style transfer, allowing to apply the artistic style of one image to another, has become one of the most widely showcased computer vision applications shortly after its introduction. In contrast, related tasks in the music audio domain remained, until recently, largely untackled. While several style conversion methods tailored to musical signals have been proposed, most lack the 'one-shot' capability of classical image style transfer algorithms. On the other hand, the results of existing one-shot audio style transfer methods on musical inputs are not as compelling. In this work, we are ",
+    "query": "VQ-VAE discrete latent representation neural discrete"
+  },
+  {
+    "id": "1208.5261",
+    "title": "Polarization optimality of equally spaced points on the circle for discrete potentials",
+    "year": 2012,
+    "authors": [
+      "D. P. Hardin",
+      "A. P. Kendall",
+      "E. B. Saff"
+    ],
+    "pdf": "https://arxiv.org/pdf/1208.5261v3",
+    "summary": "We prove a conjecture of Ambrus, Ball and Erd\u00e9lyi that equally spaced points maximize the minimum of discrete potentials on the unit circle whenever the potential is of the form \\sum_{k=1}^n f(d(z,z_k)), where $f:[0,\u03c0]\\to [0,\\infty]$ is non-increasing and strictly convex and $d(z,w)$ denotes the geodesic distance between $z$ and $w$ on the circle.",
+    "query": "VQ-VAE discrete latent representation neural discrete"
+  },
+  {
+    "id": "2212.10219",
+    "title": "Discrete fragmentation equations with time-dependent coefficients",
+    "year": 2022,
+    "authors": [
+      "Lyndsay Kerr",
+      "Wilson Lamb",
+      "Matthias Langer"
+    ],
+    "pdf": "https://arxiv.org/pdf/2212.10219v1",
+    "summary": "We examine an infinite, linear system of ordinary differential equations that models the evolution of fragmenting clusters, where each cluster is assumed to be composed of identical units. In contrast to previous investigations into such discrete-size fragmentation models, we allow the fragmentation coefficients to vary with time. By formulating the initial-value problem for the system as a non-autonomous abstract Cauchy problem, posed in an appropriately weighted $\\ell^1$ space, and then applying results from the theory of evolution families, we prove the existence and uniqueness of physicall",
+    "query": "VQ-VAE discrete latent representation neural discrete"
+  },
+  {
+    "id": "1910.05300",
+    "title": "Patterns of Multiplex Layer Entanglement across Real and Synthetic Networks",
+    "year": 2019,
+    "authors": [
+      "Bla\u017e \u0160krlj",
+      "Benjamin Renoust"
+    ],
+    "pdf": "https://arxiv.org/pdf/1910.05300v1",
+    "summary": "Real world complex networks often exhibit multiplex structure, connecting entities from different aspects of physical systems such as social, transportation and biological networks. Little is known about general properties of such networks across disciplines. In this work, we first investigate how consistent are connectivity patterns across 35 real world multiplex networks. We demonstrate that entanglement homogeneity and intensity, two measures of layer consistency, indicate apparent differences between social and biological networks. We also investigate trade, co-authorship and transport net",
+    "query": "stochastic depth networks noise injection hidden layers"
+  },
+  {
+    "id": "1602.00257",
+    "title": "Stochastic PDEs with heavy-tailed noise",
+    "year": 2016,
+    "authors": [
+      "Carsten Chong"
+    ],
+    "pdf": "https://arxiv.org/pdf/1602.00257v2",
+    "summary": "We analyze the nonlinear stochastic heat equation driven by heavy-tailed noise in free space and arbitrary dimension. The existence of a solution is proved even if the noise only has moments up to an order strictly smaller than its Blumenthal-Getoor index. In particular, this includes all stable noises with index $\u03b1<1+2/d$. Although we cannot show uniqueness, the constructed solution is natural in the sense that it is the limit of the solutions to approximative equations obtained by truncating the big jumps of the noise or by restricting its support to a compact set in space. Under growth cond",
+    "query": "stochastic depth networks noise injection hidden layers"
+  },
+  {
+    "id": "math/0411552",
+    "title": "Exact variations for stochastic heat equations driven by space--time white noise",
+    "year": 2004,
+    "authors": [
+      "Jan Pospisil",
+      "Roger Tribe"
+    ],
+    "pdf": "https://arxiv.org/pdf/math/0411552v1",
+    "summary": "  This paper calculates the exact quadratic variation in space and quartic variation in time for the solutions to a one dimensional stochastic heat equation driven by a multiplicative space-time white noise.",
+    "query": "stochastic depth networks noise injection hidden layers"
+  },
+  {
+    "id": "1008.0667",
+    "title": "Noise and Bell's inequality",
+    "year": 2010,
+    "authors": [
+      "David K. Ferry",
+      "Laszlo B. Kish"
+    ],
+    "pdf": "https://arxiv.org/pdf/1008.0667v2",
+    "summary": "From the beginning of quantum mechanics, there has been a discussion about the concept of reality, as exemplified by the EPR paradox. To many, the idea of the paradox and the possibility of local hidden variables was dismissed by the Bell inequality. Yet, there remains considerable evidence that this inequality can be violated even by classical systems, so that experiments showing quantum behavior and the violation of the inequality must be questioned. Here, we demonstrate that classical optical polarization experiments based upon noise in the system can be shown to violate the Bell inequality",
+    "query": "stochastic depth networks noise injection hidden layers"
+  },
+  {
+    "id": "1605.07838",
+    "title": "Decoherence and noise in open quantum system dynamics",
+    "year": 2016,
+    "authors": [
+      "Bassano Vacchini"
+    ],
+    "pdf": "https://arxiv.org/pdf/1605.07838v1",
+    "summary": "We consider the description of quantum noise within the framework of the standard Copenhagen interpretation of quantum mechanics applied to a composite system environment setting. Averaging over the environmental degrees of freedom leads to a stochastic quantum dynamics, described by equations complying with the constraints arising from the statistical structure of quantum mechanics. Simple examples are considered in the framework of open system dynamics described within a master equation approach, pointing in particular to the appearance of the phenomenon of decoherence and to the relevance o",
+    "query": "stochastic depth networks noise injection hidden layers"
+  },
+  {
+    "id": "1612.03430",
+    "title": "Quantum and Classical Frontiers of Noise",
+    "year": 2016,
+    "authors": [
+      "X. Oriols"
+    ],
+    "pdf": "https://arxiv.org/pdf/1612.03430v1",
+    "summary": "This paper is an introduction to the eleven works of the special issue on Quantum and Classical Frontiers of Noise. The weather, and its butterfly effect, is the typical example that explain why many natural phenomena are, in fact, not predictable with certainty. Noise in classical or quantum phenomena, understood as the difference between the empirical output of an experiment and its statistical prediction, is a measure of such uncertainty. One of the great contributions of noise appeared in 1905 when Einstein showed how the noisy (Brownian) motion of a dust particle seen in a microscope prov",
+    "query": "stochastic depth networks noise injection hidden layers"
+  },
+  {
+    "id": "2305.18887",
+    "title": "How Does Information Bottleneck Help Deep Learning?",
+    "year": 2023,
+    "authors": [
+      "Kenji Kawaguchi",
+      "Zhun Deng",
+      "Xu Ji",
+      "Jiaoyang Huang"
+    ],
+    "pdf": "https://arxiv.org/pdf/2305.18887v1",
+    "summary": "Numerous deep learning algorithms have been inspired by and understood via the notion of information bottleneck, where unnecessary information is (often implicitly) minimized while task-relevant information is maximized. However, a rigorous argument for justifying why it is desirable to control information bottlenecks has been elusive. In this paper, we provide the first rigorous learning theory for justifying the benefit of information bottleneck in deep learning by mathematically relating information bottleneck to generalization errors. Our theory proves that controlling information bottlene",
+    "query": "variational information bottleneck deep learning"
+  },
+  {
+    "id": "2306.11113",
+    "title": "Learn to Accumulate Evidence from All Training Samples: Theory and Practice",
+    "year": 2023,
+    "authors": [
+      "Deep Pandey",
+      "Qi Yu"
+    ],
+    "pdf": "https://arxiv.org/pdf/2306.11113v2",
+    "summary": "Evidential deep learning, built upon belief theory and subjective logic, offers a principled and computationally efficient way to turn a deterministic neural network uncertainty-aware. The resultant evidential models can quantify fine-grained uncertainty using the learned evidence. To ensure theoretically sound evidential models, the evidence needs to be non-negative, which requires special activation functions for model training and inference. This constraint often leads to inferior predictive performance compared to standard softmax models, making it challenging to extend them to many large-",
+    "query": "variational information bottleneck deep learning"
+  },
+  {
+    "id": "2105.04026",
+    "title": "The Modern Mathematics of Deep Learning",
+    "year": 2021,
+    "authors": [
+      "Julius Berner",
+      "Philipp Grohs",
+      "Gitta Kutyniok",
+      "Philipp Petersen"
+    ],
+    "pdf": "https://arxiv.org/pdf/2105.04026v2",
+    "summary": "We describe the new field of mathematical analysis of deep learning. This field emerged around a list of research questions that were not answered within the classical framework of learning theory. These questions concern: the outstanding generalization power of overparametrized neural networks, the role of depth in deep architectures, the apparent absence of the curse of dimensionality, the surprisingly successful optimization performance despite the non-convexity of the problem, understanding what features are learned, why deep architectures perform exceptionally well in physical problems, a",
+    "query": "variational information bottleneck deep learning"
+  },
+  {
+    "id": "2403.06129",
+    "title": "Blockchain-Enabled Variational Information Bottleneck for IoT Networks",
+    "year": 2024,
+    "authors": [
+      "Qiong Wu",
+      "Le Kuai",
+      "Pingyi Fan",
+      "Qiang Fan"
+    ],
+    "pdf": "https://arxiv.org/pdf/2403.06129v1",
+    "summary": "In Internet of Things (IoT) networks, the amount of data sensed by user devices may be huge, resulting in the serious network congestion. To solve this problem, intelligent data compression is critical. The variational information bottleneck (VIB) approach, combined with machine learning, can be employed to train the encoder and decoder, so that the required transmission data size can be reduced significantly. However, VIB suffers from the computing burden and network insecurity. In this paper, we propose a blockchain-enabled VIB (BVIB) approach to relieve the computing burden while guaranteei",
+    "query": "variational information bottleneck deep learning"
+  },
+  {
+    "id": "2301.00942",
+    "title": "Deep Learning and Computational Physics (Lecture Notes)",
+    "year": 2023,
+    "authors": [
+      "Deep Ray",
+      "Orazio Pinti",
+      "Assad A. Oberai"
+    ],
+    "pdf": "https://arxiv.org/pdf/2301.00942v1",
+    "summary": "These notes were compiled as lecture notes for a course developed and taught at the University of the Southern California. They should be accessible to a typical engineering graduate student with a strong background in Applied Mathematics.   The main objective of these notes is to introduce a student who is familiar with concepts in linear algebra and partial differential equations to select topics in deep learning. These lecture notes exploit the strong connections between deep learning algorithms and the more conventional techniques of computational physics to achieve two goals. First, they ",
+    "query": "variational information bottleneck deep learning"
+  },
+  {
+    "id": "2603.29261",
+    "title": "Monodense Deep Neural Model for Determining Item Price Elasticity",
+    "year": 2026,
+    "authors": [
+      "Lakshya Garg",
+      "Sai Yaswanth",
+      "Deep Narayan Mishra",
+      "Karthik Kumaran"
+    ],
+    "pdf": "https://arxiv.org/pdf/2603.29261v1",
+    "summary": "Item Price Elasticity is used to quantify the responsiveness of consumer demand to changes in item prices, enabling businesses to create pricing strategies and optimize revenue management. Sectors such as store retail, e-commerce, and consumer goods rely on elasticity information derived from historical sales and pricing data. This elasticity provides an understanding of purchasing behavior across different items, consumer discount sensitivity, and demand elastic departments. This information is particularly valuable for competitive markets and resource-constrained businesses decision making w",
+    "query": "variational information bottleneck deep learning"
+  }
+]

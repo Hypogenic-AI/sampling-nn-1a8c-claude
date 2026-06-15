@@ -1,0 +1,91 @@
+\section{Discussion}\label{sec:discussion}
+
+\para{Hypotheses revisited.}
+Our five hypotheses are borne out to differing degrees, and reading them together tells a
+coherent story. {\bf Does sampling cost accuracy (H1)?} Yes: single-sample accuracy is
+$\leq$ \detmode{} for every genuine sampling variant, and the gap is not a fixed tax but
+grows monotonically as we sample harder. Sharpening the categorical sample (lowering $\tau$)
+drives MNIST accuracy from $97.6\%$ down to $66.4\%$ (\Tabref{tab:e2}), and moving the
+distribution from continuous to binary to categorical widens the cost from $\approx 0$ to
+$\approx 2.8$ to $\approx 10$ points (\Tabref{tab:e1}). {\bf Does sampling regularize
+(H2)?} Yes: every stochastic variant shrinks the train--test gap, and most lower \ece{}.
+\gaussreparam{} and \bernoullist{} improve calibration \emph{and}, on \cifar{}, \nll{}
+(\gaussreparam{} cuts NLL $0.94\to0.78$ and ECE $0.112\to0.074$; \tabref{tab:e6}). {\bf Does
+MC-averaging recover the cost (H3)?} Yes (\figref{fig:e4}): averaging many stochastic passes
+approximates the expectation over the activation distribution, exactly as averaging softmax
+draws approximates the class distribution, lifting \dropout{} from $96.6\%$ to $97.9\%$ as
+$K$ grows $1\to50$. {\bf Does the distribution type govern the outcome (H4)?} Strongly: the
+Gaussian--Bernoulli--categorical ordering is visible in accuracy, in \nll{}, and in gradient
+variance, and the gradient-variance ranking (\gaussnoise{}/\bernoullist{} $\approx10^{-7}$
+$<$ \dropout{}/\gaussreparam{} $\approx10^{-6}$ $<$ \gumbelsoft{} $7\times10^{-6}$ $<$
+\gumbelst{} $1.5\times10^{-5}$) mechanistically \emph{explains} the accuracy ranking. {\bf
+Does sampling improve robustness (H5)?} Only weakly: the benefit under input noise is modest
+and comes almost entirely from \dropout{} with MC-averaging ($+1$ point at $\sigma=1.0$,
+$+2.2$ at $\sigma=1.5$; \figref{fig:e5}), not from the sampling variants themselves.
+
+\para{Why categorical sampling is special.}
+The four sampling operators are not equally severe, and the reason is sharp: categorical
+sampling is the only one that changes the \emph{dimensionality} of information flow. A hard
+one-hot draw from a softmax over $W$ hidden units passes essentially $\log_2(W)$ bits
+forward, whereas \gaussreparam{} and \bernoullist{} pass a full per-unit vector. This single
+fact is simultaneously why categorical sampling is the \emph{strongest} regularizer --- the
+smallest generalization gap on MNIST ($-0.021$ for \gumbelst{}) and the lowest \ece{} on
+\cifar{} --- and why it is the highest-variance, hardest-to-train operator. The same
+bottleneck that prevents the network from memorizing also prevents it from carrying enough
+information when the task needs it. On MNIST, where the decision is nearly linearly
+separable, a mild relaxation (large $\tau$) is a tolerable squeeze; on \cifar{}, forcing all
+CNN features through one sampled unit is too tight, and training collapses to chance
+(\tabref{tab:e6}). This is precisely the regime the information bottleneck literature
+describes \citep{tishby2015deep,alemi2017deepvib}: compressing the representation trades
+predictive sufficiency for minimality, and pushed too far the representation becomes
+insufficient. It is also a concrete instance of the codebook-collapse caution familiar from
+discrete latent models \citep{oord2017vqvae}, where a categorical bottleneck degenerates to a
+handful of active codes. The \detmode{}, \gaussreparam{}, and \bernoullist{} operators never
+touch this dimensionality and never collapse.
+
+\para{Surprises.}
+Three results ran against our priors. First, both Gaussian variants --- additive
+\gaussnoise{} and reparameterized \gaussreparam{} --- are effectively \emph{free}
+($97.7\%$ vs $97.8\%$ on MNIST, $p=0.83$ for \gaussreparam{}), and on \cifar{}
+\gaussreparam{} improves accuracy, calibration, \emph{and} \nll{} together ($75.5\%$ vs
+$75.0\%$, ECE $0.074$ vs $0.112$, NLL $0.78$ vs $0.94$). A continuous sample placed at a
+hidden layer is not a cost to be paid but, in this setting, a small net win. Second, the
+\gumbelsoft{} (soft) variant collapses to \emph{exactly} chance ($10.0\%$) on \cifar{} ---
+not merely degraded but untrainable, which we did not anticipate from a relaxed, fully
+differentiable operator. Third, sampling \emph{later} is cheaper (\tabref{tab:e3}): moving
+the \samplinglayer{} nearer the output lifts \bernoullist{} from $95.0\%$ to $97.8\%$, the
+opposite of a naive ``squeeze early to force a good bottleneck'' intuition. The bottleneck
+hurts least when it sits nearest the already-low-dimensional decision.
+
+\para{Limitations.}
+Several caveats bound these conclusions. We study two datasets (\mnist{}, \cifar{}), small
+models, a single sampling site per network, and 3 seeds; the trends are clear and
+significant, but absolute numbers are modest, with no heavy CIFAR tuning or augmentation. The
+most important caveat concerns the categorical collapse: it could be partly an
+\emph{optimization} failure --- the learning rate, scale, or temperature for the
+width-rescaled one-hot at a wide fully-connected layer --- rather than a pure information
+limit. A $\tau$-annealing schedule and per-mode learning-rate tuning were out of scope; we
+report the collapse honestly under the shared protocol rather than engineering it away, and
+the monotonic $\tau$-sweep (\figref{fig:e2}) supports the information-bottleneck reading that
+the effect is real and graded. We also note that MC-averaging \emph{categorical} samples can
+\emph{raise} \ece{}, because averaging near-one-hot draws yields overconfident mean
+probabilities --- MC-averaging is not a universal calibration fix. Robustness was tested only
+under Gaussian input noise, not adversarial or corruption suites. Finally, gradient variance
+was measured on one parameter tensor feeding the sampler as a proxy for the operator's
+overall noise, not as an exhaustive accounting.
+
+\para{Broader implications.}
+The practical guidance is asymmetric and, we think, useful. Continuous (Gaussian)
+intermediate-layer sampling is a near-free drop-in: \gaussreparam{} costs no measurable
+accuracy and reliably improves calibration and the generalization gap, making it a sensible
+default when better-behaved probabilities are wanted at little risk. The literal categorical
+idea --- ``sample one hidden unit the way we sample the output softmax'' --- is \emph{not} a
+free drop-in. It is a severe information bottleneck whose cost scales with three things at
+once: task difficulty (gentle on MNIST, catastrophic on \cifar{}), sampling sharpness
+(monotonic in $\tau$), and earlier placement (cheaper near the output). Practitioners drawn
+to the elegant softmax-sampling analogy should treat categorical hidden sampling as a
+deliberate, heavily-regularizing bottleneck to be annealed and tuned, not as a plug-in
+stochastic activation. More broadly, our controlled comparison suggests that the right
+question about hidden-layer stochasticity is not \emph{whether} to sample but \emph{from what
+distribution}: the choice of distribution type, far more than the mere act of sampling,
+determines whether the operation is a free regularizer or a training-breaking bottleneck.

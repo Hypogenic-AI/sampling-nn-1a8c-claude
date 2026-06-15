@@ -1,0 +1,65 @@
+\section{Methodology}\label{sec:method}
+
+We study a single, controlled intervention: take the activations of one hidden layer, turn them into a probability distribution, and \emph{sample} from that distribution instead of passing the activations forward deterministically. This is exactly the operation applied to the final softmax of a classifier, except we apply it to an intermediate layer. To isolate this intervention, we keep the backbone, optimizer, data pipeline, and evaluation protocol fixed and vary \emph{only} the distribution type and sampling rule at one layer.
+
+\subsection{The \samplinglayer}\label{sec:method:layer}
+
+\para{A drop-in stochastic module.} The \samplinglayer is a module placed immediately after a hidden ReLU. It receives the post-ReLU activations $x \in \mathbb{R}^d$ of that layer, interprets them as the parameters of a distribution, draws a sample $h$, and forwards $h$ in place of $x$. The rest of the network is untouched. We implement seven modes, summarized in \tabref{tab:modes}: a deterministic reference, two baselines that inject noise without learning a distribution (\textsc{Dropout}, \gaussnoise), one continuous learned distribution (\gaussreparam), and three discrete operators (\bernoullist, \gumbelsoft, \gumbelst). The discrete trio spans the straight-through stochastic neuron of \citet{bengio2013stochastic} and the two direct analogues of softmax sampling.
+
+\para{The categorical modes implement the idea literally.} For \gumbelsoft and \gumbelst we treat the $d$ units of the hidden layer exactly as we treat the $C$ class logits at the output: we form a categorical distribution $\softmax(x)$ over the units and draw a Gumbel-Softmax sample, the same operation we apply to the final softmax, but now over hidden units rather than classes. \gumbelsoft returns the relaxed simplex vector; \gumbelst returns a hard one-hot sample, so the layer collapses to a single active unit per forward pass. To keep the forwarded magnitude comparable to a dense ReLU activation, we rescale the one-hot simplex vector by the layer width $d$, so the active unit carries mass of order one rather than $1/d$. This is the most aggressive intervention we test: it replaces a $d$-dimensional representation with a one-of-$d$ choice.
+
+\para{The continuous mode carries a built-in regularizer.} For \gaussreparam, each unit emits a per-unit mean $\mu(x)$ and standard deviation $\sigma(x)$, and we draw
+\begin{equation}
+z = \mu(x) + \sigma(x) \odot \epsilon, \qquad \epsilon \sim \mathcal{N}(0, I),
+\label{eq:gauss}
+\end{equation}
+using the reparameterization trick \citep{kingma2014vae}. We add a small KL-to-prior penalty $\mathrm{KL}\big(\mathcal{N}(\mu,\sigma^2)\,\|\,\mathcal{N}(0,I)\big)$ with weight $10^{-3}$, following the variational autoencoder and deep variational information bottleneck \citep{kingma2014vae,alemi2017deepvib}. This term is the only architectural extra any mode receives; it keeps the learned per-unit variances from collapsing or exploding.
+
+\para{The discrete baselines and the stochastic neuron.} \bernoullist samples each unit independently as a hard $0/1$ Bernoulli draw and uses a straight-through estimator for the gradient,
+\begin{equation}
+h_i \sim \mathrm{Bernoulli}\big(\sigma(x_i)\big),
+\label{eq:bern}
+\end{equation}
+\ie the Bengio stochastic neuron \citep{bengio2013stochastic}. The Gumbel-Softmax sample is
+\begin{equation}
+y_i = \softmax\!\Big(\tfrac{\log \pi_i + g_i}{\tau}\Big), \qquad g_i \sim \mathrm{Gumbel}(0,1),
+\label{eq:gumbel}
+\end{equation}
+with $\pi = \softmax(x)$ and temperature $\tau$ \citep{jang2017gumbel,maddison2017concrete}. \gaussnoise adds reparameterized noise $x + \sigma\,\mathcal{N}(0,I)$ without learning the distribution, and \textsc{Dropout} applies the usual Bernoulli mask with inverted scaling $\text{mask}\cdot x/(1-p)$ and an exact gradient \citep{srivastava2014dropout,gal2016dropout}. These two baselines let us separate \emph{learned} distributional sampling from generic noise injection.
+
+\begin{table}[t]
+  \centering
+  \caption{The seven \samplinglayer modes. Each is a drop-in operator placed after a hidden ReLU. The categorical modes (\gumbelsoft, \gumbelst) are the direct analogues of sampling the final softmax, applied to hidden units; \gumbelst rescales its one-hot output by the layer width $d$ to match dense-activation magnitude. ST $=$ straight-through; RT $=$ reparameterization trick.}
+  \label{tab:modes}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}llllp{2.4cm}@{}}
+    \toprule
+    Mode & Distribution & Sample & Gradient estimator & Role \\
+    \midrule
+    \detmode & --- & $x$ & exact & reference \\
+    \textsc{Dropout} & Bernoulli mask & $\text{mask}\cdot x/(1{-}p)$ & exact & baseline (MC-dropout) \\
+    \gaussnoise & $x + \sigma\,\mathcal{N}(0,I)$ & $x + \sigma\epsilon$ & RT & baseline (unlearned noise) \\
+    \gaussreparam & $\mathcal{N}(\mu(x),\sigma(x)^2)$ & $\mu + \sigma\odot\epsilon$ & RT ($+$ KL) & continuous (VAE-style) \\
+    \bernoullist & $\mathrm{Bernoulli}(\sigma(x))$ & hard $0/1$ & ST & stochastic neuron \\
+    \gumbelsoft & $\softmax(x)$ over units & relaxed simplex & Gumbel-Softmax & softmax analogue (soft) \\
+    \gumbelst & $\softmax(x)$ over units & one-hot ($\times d$) & ST-Gumbel & softmax analogue (hard) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Backbones, training, and evaluation}\label{sec:method:train}
+
+\para{Backbones.} On \mnist we use an MLP $784 \to 256 \to 256 \to 10$ with ReLU activations and place the \samplinglayer after the first hidden layer (position $0$) by default \citep{lecun1998mnist}. On \cifar we use a small CNN (4 convolutional blocks followed by 2 fully connected layers) and place the \samplinglayer on the $256$-dimensional fully connected features \citep{krizhevsky2009cifar}. Both backbones are otherwise standard; the only architectural difference across runs is which mode the \samplinglayer uses.
+
+\para{Training.} We train with Adam (learning rate $10^{-3}$), batch size $128$, for at most $15$ epochs on \mnist and $20$ on \cifar. We carve a $10\%$ validation split from the training set (deterministic per seed) and use it for early stopping (patience $5$, best checkpoint restored) and for selecting knobs such as $\tau$ and $\sigma$; the test set is touched only for final evaluation. Standardization statistics are computed on the train split alone, so there is no leakage. We repeat every configuration over seeds $\{0,1,2\}$.
+
+\para{Metrics.} We report test accuracy, \nll, \ece with $15$ bins \citep{guo2017calibration}, predictive entropy, and the generalization gap (train accuracy $-$ test accuracy). To isolate sampling noise itself, we measure the \emph{gradient variance at the sampling layer}: the variance of the loss gradient across repeated stochastic passes on a single fixed minibatch. Because the data and weights are held fixed, this variance is attributable to the sampling operation alone. Stochastic models are evaluated both single-sample and Monte-Carlo averaged over $K$ forward passes.
+
+\para{Statistics and compute.} For each metric we run a paired $t$-test across seeds against \detmode and report Cohen's $d$, at significance level $\alpha = 0.05$. All runs use an NVIDIA RTX A6000 with torch $2.12$. The full study comprises $117$ trained models and completes in roughly $36$ minutes.
+
+\subsection{Experiments}\label{sec:method:exp}
+
+\para{Experiment suite.} We run six experiments. \textbf{E1} is the core comparison on \mnist across all seven modes. \textbf{E2} sweeps the temperature $\tau$ (for the Gumbel modes) and the noise scale $\sigma$ (for \gaussnoise) to map how the knob controls aggressiveness. \textbf{E3} sweeps the layer position of the \samplinglayer. \textbf{E4} crosses train-time and test-time stochasticity with MC-averaging over $K \in \{1, 5, 20, 50\}$ passes. \textbf{E5} measures robustness to additive Gaussian input noise. \textbf{E6} confirms the findings on the harder \cifar task.
+
+\para{Hypotheses.} The experiments test five predictions. \textbf{H1} (cost): single-sample accuracy is at most deterministic accuracy, and the gap grows with how aggressively the mode samples. \textbf{H2} (regularization): sampling improves calibration and shrinks the generalization gap. \textbf{H3} (recovery): MC-averaging recovers accuracy lost to single-sample stochasticity. \textbf{H4} (ordering): the continuous Gaussian mode is the gentlest intervention and the hard categorical mode (\gumbelst) is the most aggressive. \textbf{H5} (robustness): sampling improves robustness to input noise. We organize \secref{sec:results} around these hypotheses.

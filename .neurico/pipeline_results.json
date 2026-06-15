@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "stages": {
+    "resource_finder": {
+      "success": true,
+      "completion_marker": "/workspaces/sampling-nn-1a8c-claude/.resource_finder_complete",
+      "outputs": {
+        "literature_review": "/workspaces/sampling-nn-1a8c-claude/literature_review.md",
+        "resources_catalog": "/workspaces/sampling-nn-1a8c-claude/resources.md",
+        "papers_dir": "/workspaces/sampling-nn-1a8c-claude/papers",
+        "datasets_dir": "/workspaces/sampling-nn-1a8c-claude/datasets",
+        "code_dir": "/workspaces/sampling-nn-1a8c-claude/code"
+      },
+      "log_file": "/workspaces/sampling-nn-1a8c-claude/logs/resource_finder_claude.log",
+      "transcript_file": "/workspaces/sampling-nn-1a8c-claude/logs/resource_finder_claude_transcript.jsonl",
+      "elapsed_time": 1137.7289009094238
+    },
+    "experiment_runner": {
+      "success": true,
+      "return_code": 0,
+      "elapsed_time": 2414.7222559452057,
+      "log_file": "/workspaces/sampling-nn-1a8c-claude/logs/execution_claude.log",
+      "transcript_file": "/workspaces/sampling-nn-1a8c-claude/logs/execution_claude_transcript.jsonl"
+    }
+  },
+  "work_dir": "/workspaces/sampling-nn-1a8c-claude"
+}

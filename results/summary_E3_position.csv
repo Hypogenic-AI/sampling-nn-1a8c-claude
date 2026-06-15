@@ -1,0 +1,7 @@
+mode,pos,acc_s1,acc_mc,ece
+bernoulli_st,0,0.9499,0.9663,0.007
+bernoulli_st,1,0.9783,0.9806,0.0103
+gaussian_reparam,0,0.9773,0.9775,0.0098
+gaussian_reparam,1,0.9795,0.9795,0.0117
+gumbel_st,0,0.8735,0.8859,0.015
+gumbel_st,1,0.8886,0.8923,0.0253
